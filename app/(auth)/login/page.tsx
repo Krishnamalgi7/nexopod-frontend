@@ -1,9 +1,11 @@
+
 import LoginForm from "@/components/auth/LoginForm";
+import AuthLayout from "@/components/auth/AuthLayout";
 
 export default function LoginPage() {
     return (
-        <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
+        <AuthLayout mode="login">
             <LoginForm />
-        </main>
+        </AuthLayout>
     );
-}   
+}

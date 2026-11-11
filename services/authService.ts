@@ -17,6 +17,13 @@ interface RegisterResponse {
     };
 }
 
+interface RegistrationStatusResponse {
+    success: boolean;
+    data: {
+        registrationOpen: boolean;
+    };
+}
+
 interface LoginData {
     phone: string;
     password: string;
@@ -55,6 +62,25 @@ export const registerUser = async (
     return result;
 };
 
+export const getRegistrationStatus =
+    async (): Promise<RegistrationStatusResponse> => {
+        const response = await fetch(
+            `${API_BASE_URL}/api/auth/registration-status`,
+            {
+                method: "GET",
+                cache: "no-store",
+            }
+        );
+
+        const result: RegistrationStatusResponse = await response.json();
+
+        if (!response.ok) {
+            throw new Error("Unable to check registration status.");
+        }
+
+        return result;
+    };
+    
 export const loginUser = async (
     loginData: LoginData
 ): Promise<LoginResponse> => {

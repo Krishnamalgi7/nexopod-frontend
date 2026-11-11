@@ -1,26 +1,85 @@
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==============================
+   LIGHT THEME (DEFAULT)
+================================ */
+
+:root,
+[data-theme="light"] {
+    color-scheme: light;
+
+    --background: #f4f9f8;
+    --foreground: #123d4a;
+
+    --surface: #ffffff;
+    --surface-secondary: #eaf8f6;
+
+    --primary: #079d98;
+    --primary-hover: #078b86;
+
+    --text-primary: #123d4a;
+    --text-secondary: #70858a;
+
+    --border: #e3edeb;
+    --navbar: rgba(255, 255, 255, 0.95);
 }
+
+/* ==============================
+   DARK THEME
+================================ */
+
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    --background: #101718;
+    --foreground: #e8f4f2;
+
+    --surface: #192324;
+    --surface-secondary: #203131;
+
+    --primary: #12b8ae;
+    --primary-hover: #0fa49c;
+
+    --text-primary: #e8f4f2;
+    --text-secondary: #a0b6b4;
+
+    --border: #304342;
+    --navbar: rgba(25, 35, 36, 0.95);
+}
+
+/* ==============================
+   TAILWIND THEME VARIABLES
+================================ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ==============================
+   GLOBAL STYLES
+================================ */
+
+html {
+    min-height: 100%;
+    background: var(--background);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+    transition: background-color 200ms ease, color 200ms ease;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
 }

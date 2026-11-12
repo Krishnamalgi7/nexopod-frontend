@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getRegistrationStatus } from "@/services/authService";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -8,6 +10,22 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children, mode }: AuthLayoutProps) {
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+
+  useEffect(() => {
+    const checkRegistration = async () => {
+      try {
+        const result = await getRegistrationStatus();
+        setRegistrationOpen(result.data.registrationOpen);
+      } catch (error) {
+        console.error("Failed to check registration status:", error);
+        setRegistrationOpen(false);
+      }
+    };
+
+    checkRegistration();
+  }, []);
+
   return (
     <main
       className="flex min-h-screen items-center justify-end overflow-hidden bg-[#f7ffff] bg-no-repeat px-4 py-6 sm:px-8 lg:px-12"
@@ -30,7 +48,11 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
         </Link>
 
         {/* Authentication tabs */}
-        <div className="mb-8 grid grid-cols-2 border-b border-[#e1e9e9]">
+        <div
+          className={`mb-8 grid border-b border-[#e1e9e9] ${
+            registrationOpen ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
           <Link
             href="/login"
             className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
@@ -42,16 +64,18 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
             Login
           </Link>
 
-          <Link
-            href="/signup"
-            className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
-              mode === "signup"
-                ? "border-[#079d98] text-[#087d7b]"
-                : "border-transparent text-[#718087] hover:text-[#123d4a]"
-            }`}
-          >
-            Register
-          </Link>
+          {registrationOpen && (
+            <Link
+              href="/signup"
+              className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
+                mode === "signup"
+                  ? "border-[#079d98] text-[#087d7b]"
+                  : "border-transparent text-[#718087] hover:text-[#123d4a]"
+              }`}
+            >
+              Register
+            </Link>
+          )}
         </div>
 
         {children}

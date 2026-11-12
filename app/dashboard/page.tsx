@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+
 import {
     Plus,
     Store,
@@ -10,6 +10,7 @@ import {
     LoaderCircle,
     AlertCircle
 } from "lucide-react";
+
 import { getStoreStats, type StoreStats } from "@/services/storeService";
 
 export default function DashboardPage() {

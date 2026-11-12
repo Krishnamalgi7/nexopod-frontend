@@ -40,7 +40,7 @@ export const createStore = async (storeData: CreateStoreData): Promise<CreateSto
         formData.append("images", file);
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/stores`, {
+    const response = await fetch(`${API_BASE_URL}/api/stores/create-store`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -102,7 +102,7 @@ export const getStores = async (params: GetStoresParams = {}): Promise<GetStores
     if (params.limit) queryParams.append("limit", String(params.limit));
 
     const queryString = queryParams.toString();
-    const url = `${API_BASE_URL}/api/stores${queryString ? `?${queryString}` : ""}`;
+    const url = `${API_BASE_URL}/api/stores/get-all-stores${queryString ? `?${queryString}` : ""}`;
 
     const response = await fetch(url, {
         method: "GET",
@@ -129,7 +129,7 @@ export const getStoreStats = async (): Promise<StoreStats> => {
     const token = sessionStorage.getItem("nexopodToken");
     if (!token) throw new Error("Your session has expired. Please log in again.");
 
-    const response = await fetch(`${API_BASE_URL}/api/stores/stats`, {
+    const response = await fetch(`${API_BASE_URL}/api/stores/get-store-stats`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
@@ -151,7 +151,7 @@ export const updateStoreStatus = async (
     const token = sessionStorage.getItem("nexopodToken");
     if (!token) throw new Error("Your session has expired. Please log in again.");
 
-    const response = await fetch(`${API_BASE_URL}/api/stores/${storeId}/status`, {
+    const response = await fetch(`${API_BASE_URL}/api/stores/update-store-status/${storeId}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json",
@@ -176,8 +176,8 @@ export const updateStoreDetails = async (
     const token = sessionStorage.getItem("nexopodToken");
     if (!token) throw new Error("Your session has expired. Please log in again.");
 
-    const response = await fetch(`${API_BASE_URL}/api/stores/${storeId}/details`, {
-        method: "PATCH",
+    const response = await fetch(`${API_BASE_URL}/api/stores/update-store/${storeId}`, {
+        method: "PUT",
         headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,

@@ -23,6 +23,8 @@ import {
 
 import { createStore } from "@/services/storeService";
 import ImageWithFallback from "@/components/ImageWithFallback";
+import Toast, { type ToastType } from "@/components/Toast";
+import { createPortal } from "react-dom";
 
 type DayKey =
   | "monday"
@@ -86,6 +88,12 @@ export default function AddStorePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [toast, setToast] = useState<{
+    type: ToastType;
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Release preview URLs when files change or component unmounts.
   useEffect(() => {
@@ -196,30 +204,90 @@ export default function AddStorePage() {
     setError("");
     setSuccess("");
 
-    if (!mainImage) {
-      setError("Please upload the main store image.");
+    // 1. Store name
+    if (name.trim().length < 2) {
+      setToast({
+        type: "warning",
+        title: "Store name required",
+        message: "Please enter a store name with at least 2 characters.",
+      });
       return;
     }
 
-    if (services.length === 0) {
-      setError("Please select at least one store service.");
-      return;
-    }
-
+    // 2. Contact number
     if (!/^\d{10}$/.test(contactNumber)) {
-      setError("Enter a valid 10-digit contact number.");
+      setToast({
+        type: "warning",
+        title: "Contact number required",
+        message: "Please enter a valid 10-digit phone number.",
+      });
       return;
     }
+
+    // 3. Google Maps link
+    if (!addressLink.trim()) {
+      setToast({
+        type: "warning",
+        title: "Store location required",
+        message: "Please enter the Google Maps address link.",
+      });
+      return;
+    }
+
+    try {
+      const parsedUrl = new URL(addressLink.trim());
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        throw new Error("Invalid URL");
+      }
+    } catch {
+      setToast({
+        type: "warning",
+        title: "Invalid store location",
+        message: "Please enter a valid Google Maps link.",
+      });
+      return;
+    }
+
+    // 4. Store services
+    if (services.length === 0) {
+      setToast({
+        type: "warning",
+        title: "Choose a service",
+        message: "Please select at least one service for this store.",
+      });
+      return;
+    }
+
+    // 5. Main store image
+    if (!mainImage) {
+      setToast({
+        type: "warning",
+        title: "Store image required",
+        message: "Please upload a main image for your store.",
+      });
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const parsedUrl = new URL(addressLink);
 
       if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        setError("Please enter a valid Google Maps link.");
+        setToast({
+          type: "warning",
+          title: "Check the store location",
+          message: "Please enter a valid Google Maps link.",
+        });
         return;
       }
     } catch {
-      setError("Please enter a valid Google Maps link.");
+      setToast({
+        type: "warning",
+        title: "Check the store location",
+        message: "Please enter a valid Google Maps link.",
+      });
       return;
     }
 
@@ -266,7 +334,11 @@ export default function AddStorePage() {
         images: additionalImages,
       });
 
-      setSuccess(result.message || "Store created successfully.");
+      setToast({
+        type: "success",
+        title: "Store Created",
+        message: "Your new store has been added successfully!",
+      });
 
       // Clear the form after successful creation.
       setName("");
@@ -292,7 +364,7 @@ export default function AddStorePage() {
       // Return to the dashboard after successful creation.
       setTimeout(() => {
         router.push("/dashboard");
-      }, 1200);
+      }, 3800);
     } catch (err) {
       console.error("Store creation failed:", err);
 
@@ -308,6 +380,14 @@ export default function AddStorePage() {
 
   return (
     <main className="min-h-screen bg-[#f4f9f8] px-4 py-8 sm:px-6">
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="mx-auto max-w-7xl">
         <button
           type="button"
@@ -335,9 +415,7 @@ export default function AddStorePage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Store name */}
-
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Store Details */}
           <section className="grid grid-cols-1 gap-6 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[240px_1fr] lg:gap-10">
             {/* Section Information */}

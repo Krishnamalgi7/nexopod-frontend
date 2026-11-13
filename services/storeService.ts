@@ -5,6 +5,12 @@ export interface CreateStoreData {
     addressLink: string;
     contactNumber: string;
     timings: string;
+    services: string[];
+    weeklyTimings: Record<string, {
+        isClosed: boolean;
+        openTime: string;
+        closeTime: string;
+    }>;
     image: File;
     images: File[];
 }
@@ -34,7 +40,9 @@ export const createStore = async (storeData: CreateStoreData): Promise<CreateSto
     formData.append("addressLink", storeData.addressLink.trim());
     formData.append("contactNumber", storeData.contactNumber);
     formData.append("timings", storeData.timings.trim());
-    formData.append("image", storeData.image);
+formData.append("services", JSON.stringify(storeData.services));
+formData.append("weeklyTimings", JSON.stringify(storeData.weeklyTimings));
+formData.append("image", storeData.image);
 
     storeData.images.forEach((file) => {
         formData.append("images", file);
@@ -55,12 +63,22 @@ export const createStore = async (storeData: CreateStoreData): Promise<CreateSto
     return result;
 };
 
+
+export interface StoreDayTiming {
+    isClosed: boolean;
+    openTime?: string;
+    closeTime?: string;
+}
+
+
 export interface StoreItem {
     _id: string;
     name: string;
     addressLink: string;
     contactNumber: string;
     timings: string;
+    services?: string[];
+weeklyTimings?: Record<string, StoreDayTiming>;
     isActive: boolean;
     image: { type: "upload"; path: string; };
     images: { type: "upload"; path: string; }[];
@@ -169,27 +187,74 @@ export const updateStoreStatus = async (
     return result;
 };
 
+
+export interface UpdateStoreDetailsData {
+    name: string;
+    addressLink: string;
+    contactNumber: string;
+    timings: string;
+    services: string[];
+    weeklyTimings: Record<string, unknown>;
+    existingImages: string[];
+    image?: File | null;
+    images: File[];
+}
+
 export const updateStoreDetails = async (
     storeId: string,
-    details: { name: string; addressLink: string; contactNumber: string; timings: string }
+    details: UpdateStoreDetailsData
 ): Promise<{ success: boolean; message: string; data: StoreItem }> => {
     const token = sessionStorage.getItem("nexopodToken");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
 
-    const response = await fetch(`${API_BASE_URL}/api/stores/update-store/${storeId}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(details),
+    if (!token) {
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const formData = new FormData();
+
+    // Basic store details
+    formData.append("name", details.name.trim());
+    formData.append("addressLink", details.addressLink.trim());
+    formData.append("contactNumber", details.contactNumber);
+    formData.append("timings", details.timings.trim());
+
+    // Store services and weekly schedule
+    formData.append("services", JSON.stringify(details.services));
+    formData.append("weeklyTimings", JSON.stringify(details.weeklyTimings));
+
+    // Existing additional images selected to be retained
+    formData.append("existingImages", JSON.stringify(details.existingImages));
+
+    // New main image (optional)
+    if (details.image) {
+        formData.append("image", details.image);
+    }
+
+    // New additional images
+    details.images.forEach((file) => {
+        formData.append("images", file);
     });
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/stores/update-store/${storeId}`,
+        {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        }
+    );
 
     const result = await response.json();
 
     if (!response.ok) {
-        if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
+        if (response.status === 401) {
+            throw new Error("Your session has expired. Please log in again.");
+        }
+
         throw new Error(result.message || "Failed to update store details.");
     }
+
     return result;
 };

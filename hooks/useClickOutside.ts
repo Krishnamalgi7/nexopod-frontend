@@ -1,23 +1,32 @@
+
 import { useEffect, useRef } from "react";
 
 export default function useClickOutside<T extends HTMLElement>(
     onOutsideClick: () => void
 ) {
     const ref = useRef<T>(null);
+    const callbackRef = useRef(onOutsideClick);
+
+    useEffect(() => {
+        callbackRef.current = onOutsideClick;
+    }, [onOutsideClick]);
 
     useEffect(() => {
         const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target;
+
             if (
                 ref.current &&
-                !ref.current.contains(event.target as Node)
+                target instanceof Node &&
+                !ref.current.contains(target)
             ) {
-                onOutsideClick();
+                callbackRef.current();
             }
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
-                onOutsideClick();
+                callbackRef.current();
             }
         };
 
@@ -28,7 +37,7 @@ export default function useClickOutside<T extends HTMLElement>(
             document.removeEventListener("pointerdown", handlePointerDown);
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [onOutsideClick]);
+    }, []);
 
     return ref;
 }

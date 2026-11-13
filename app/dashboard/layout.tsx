@@ -1,4 +1,7 @@
-import Navbar from "@/components/dashboard/Navbar";
+
+import DashboardAuthGuard from "@/components/dashboard/DashboardAuthGuard";
+
+export const instant = false;
 
 export default function DashboardLayout({
     children,
@@ -6,12 +9,8 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
-        <>
-            <Navbar />
-
-            <div>
-                {children}
-            </div>
-        </>
+        <DashboardAuthGuard>
+            {children}
+        </DashboardAuthGuard>
     );
 }

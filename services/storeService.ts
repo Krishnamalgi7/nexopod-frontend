@@ -1,4 +1,16 @@
 import API_BASE_URL from "./api";
+import { useAuthStore } from "@/stores/authStore";
+
+const handleUnauthorized = () => {
+    useAuthStore.getState().clearSession();
+
+    if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+    ) {
+        window.location.replace("/login");
+    }
+};
 
 export interface CreateStoreData {
     name: string;
@@ -33,7 +45,10 @@ interface CreateStoreResponse {
 
 export const createStore = async (storeData: CreateStoreData): Promise<CreateStoreResponse> => {
     const token = sessionStorage.getItem("nexopodToken");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
 
     const formData = new FormData();
     formData.append("name", storeData.name.trim());
@@ -57,6 +72,7 @@ formData.append("image", storeData.image);
     const result: CreateStoreResponse = await response.json();
 
     if (!response.ok) {
+         handleUnauthorized();
         if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
         throw new Error(result.message || "Failed to create store.");
     }
@@ -105,17 +121,23 @@ interface GetStoresResponse {
 export interface GetStoresParams {
     search?: string;
     status?: "all" | "active" | "inactive";
+    service?: "all" | "Phone Charging" | "Pick Me Later" | "both";
     page?: number;
     limit?: number;
 }
 
 export const getStores = async (params: GetStoresParams = {}): Promise<GetStoresResponse> => {
     const token = sessionStorage.getItem("nexopodToken");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
 
     const queryParams = new URLSearchParams();
     if (params.search) queryParams.append("search", params.search);
     if (params.status) queryParams.append("status", params.status);
+    if (params.service) queryParams.append("service", params.service);
     if (params.page) queryParams.append("page", String(params.page));
     if (params.limit) queryParams.append("limit", String(params.limit));
 
@@ -131,6 +153,7 @@ export const getStores = async (params: GetStoresParams = {}): Promise<GetStores
     const result: GetStoresResponse = await response.json();
 
     if (!response.ok) {
+        handleUnauthorized();
         if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
         throw new Error("Unable to fetch stores.");
     }
@@ -145,7 +168,11 @@ export interface StoreStats {
 
 export const getStoreStats = async (): Promise<StoreStats> => {
     const token = sessionStorage.getItem("nexopodToken");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/stores/get-store-stats`, {
         method: "GET",
@@ -156,6 +183,7 @@ export const getStoreStats = async (): Promise<StoreStats> => {
     const result = await response.json();
 
     if (!response.ok) {
+        handleUnauthorized();
         if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
         throw new Error("Unable to fetch store statistics.");
     }
@@ -167,7 +195,11 @@ export const updateStoreStatus = async (
     isActive: boolean
 ): Promise<{ success: boolean; message: string; data: StoreItem }> => {
     const token = sessionStorage.getItem("nexopodToken");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/stores/update-store-status/${storeId}`, {
         method: "PATCH",
@@ -181,6 +213,7 @@ export const updateStoreStatus = async (
     const result = await response.json();
 
     if (!response.ok) {
+        handleUnauthorized();
         if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
         throw new Error(result.message || "Failed to update store status.");
     }
@@ -207,6 +240,7 @@ export const updateStoreDetails = async (
     const token = sessionStorage.getItem("nexopodToken");
 
     if (!token) {
+        handleUnauthorized();
         throw new Error("Your session has expired. Please log in again.");
     }
 
@@ -250,6 +284,7 @@ export const updateStoreDetails = async (
 
     if (!response.ok) {
         if (response.status === 401) {
+            handleUnauthorized();
             throw new Error("Your session has expired. Please log in again.");
         }
 

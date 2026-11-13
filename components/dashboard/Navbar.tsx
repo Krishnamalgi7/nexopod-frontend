@@ -4,6 +4,7 @@ import useClickOutside from "@/hooks/useClickOutside";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
 
 import Link from "next/link";
 import {
@@ -27,26 +28,15 @@ export default function Navbar() {
 
   const closeProfile = () => setProfileOpen(false);
 
-const profileRef = useClickOutside<HTMLDivElement>(closeProfile);
+  const profileRef = useClickOutside<HTMLDivElement>(closeProfile);
 
-  const [user] = useState(() => {
-    if (typeof window === "undefined") return null;
+ const user = useAuthStore((state) => state.user);
+const clearSession = useAuthStore((state) => state.clearSession);
 
-    const savedUser = sessionStorage.getItem("nexopodUser");
-
-    try {
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const handleLogout = () => {
-    sessionStorage.removeItem("nexopodToken");
-    sessionStorage.removeItem("nexopodUser");
-
-    router.replace("/login");
-  };
+const handleLogout = () => {
+  clearSession();
+  router.replace("/login");
+};
 
   const isAddStoreActive = pathname === "/dashboard/add-store";
   const isStoresActive = pathname === "/dashboard/stores";

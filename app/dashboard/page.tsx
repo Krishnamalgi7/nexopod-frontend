@@ -13,7 +13,7 @@ import {
 
 import { getStoreStats, type StoreStats } from "@/services/storeService";
 
-export default function DashboardPage() {
+export default function DashboardPageClient() {
     const [stats, setStats] = useState<StoreStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");

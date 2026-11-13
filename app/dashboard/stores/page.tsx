@@ -21,6 +21,7 @@ import {
   Package,
   Layers,
   CheckCircle2,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import {
@@ -79,11 +80,29 @@ export default function StoresPage() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
+
+  const [selectedService, setSelectedService] = useState<
+    "all" | "Phone Charging" | "Pick Me Later" | "both"
+  >("all");
+
   const [currentPage, setCurrentPage] = useState(1);
 
   // Custom Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const closeStatusDropdown = useCallback(() => {
+    setIsDropdownOpen(false);
+  }, []);
+
+  const dropdownRef = useClickOutside<HTMLDivElement>(closeStatusDropdown);
+
+  const [isServicesDropdownOpen, setIsServicesDropdownOpen] = useState(false);
+  const closeServicesDropdown = useCallback(() => {
+    setIsServicesDropdownOpen(false);
+  }, []);
+
+  const servicesDropdownRef = useClickOutside<HTMLDivElement>(
+    closeServicesDropdown,
+  );
 
   // Modals State
   const [storeToToggle, setStoreToToggle] = useState<StoreItem | null>(null);
@@ -180,20 +199,6 @@ export default function StoresPage() {
     e.target.value = "";
   };
 
-  // Handle click outside for custom dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -210,6 +215,7 @@ export default function StoresPage() {
       const response = await getStores({
         search: debouncedSearch,
         status: statusFilter,
+        service: selectedService,
         page: currentPage,
         limit: 10,
       });
@@ -220,7 +226,7 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, currentPage]);
+  }, [debouncedSearch, statusFilter, selectedService, currentPage]);
 
   useEffect(() => {
     fetchStoresData();
@@ -451,20 +457,89 @@ export default function StoresPage() {
               />
             </div>
 
+            {/* Services Filter Dropdown */}
+            <div className="relative" ref={servicesDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsServicesDropdownOpen((prev) => !prev)}
+                className="flex min-w-[140px] items-center justify-between gap-3 rounded-xl border border-[#dce9e6] bg-white px-4 py-2.5 text-sm font-medium text-[#123d4a] transition hover:bg-[#eaf8f6]"
+              >
+                <SlidersHorizontal
+                  size={16}
+                  className="shrink-0 text-[#079d98]"
+                />
+
+                <span>
+                  {selectedService === "all"
+                    ? "All Services"
+                    : selectedService === "both"
+                      ? "Both"
+                      : selectedService}
+                </span>
+
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-[#829397] transition-transform duration-300 ${
+                    isServicesDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isServicesDropdownOpen && (
+                <div className="absolute right-0 top-full z-20 mt-2 w-full rounded-xl border border-[#dce9e6] bg-white p-1.5 shadow-lg">
+                  {[
+                    { label: "All Services", value: "all" },
+                    { label: "Phone Charging", value: "Phone Charging" },
+                    { label: "Pick Me Later", value: "Pick Me Later" },
+                    { label: "Both", value: "both" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedService(
+                          option.value as typeof selectedService,
+                        );
+                        setCurrentPage(1);
+                        setIsServicesDropdownOpen(false);
+                      }}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:bg-[#eaf8f6] hover:text-[#079d98] ${
+                        selectedService === option.value
+                          ? "bg-[#eaf8f6] text-[#079d98]"
+                          : "text-[#536b72]"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Custom Rotating Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center justify-between gap-3 rounded-xl border border-[#dce9e6] bg-white px-4 py-2.5 text-sm font-medium text-[#123d4a] transition hover:bg-[#eaf8f6] min-w-[140px]"
               >
-                {statusFilter === "all"
-                  ? "All Statuses"
-                  : statusFilter === "active"
-                    ? "Active"
-                    : "Inactive"}
+                <SlidersHorizontal
+                  size={16}
+                  className="shrink-0 text-[#079d98]"
+                />
+
+                <span>
+                  {statusFilter === "all"
+                    ? "All Statuses"
+                    : statusFilter === "active"
+                      ? "Active"
+                      : "Inactive"}
+                </span>
+
                 <ChevronDown
                   size={16}
-                  className={`text-[#829397] transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                  className={`text-[#829397] transition-transform duration-300 ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
@@ -584,9 +659,8 @@ export default function StoresPage() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-medium text-[#123d4a]">
-                           {store.contactNumber}
+                          {store.contactNumber}
                         </p>
-                  
                       </td>
 
                       <td className="px-6 py-4">

@@ -1,0 +1,4214 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  dashboard/
+    add-store/
+      page.tsx
+    stores/
+      page.tsx
+    layout.tsx
+    page.tsx
+  login/
+    page.tsx
+  signup/
+    page.tsx
+  favicon.ico
+  globals.css
+  layout.tsx
+  page.tsx
+components/
+  dashboard/
+    DashboardAuthGuard.tsx
+    Navbar.tsx
+  AuthLayout.tsx
+  ImageWithFallback.tsx
+hooks/
+  useClickOutside.ts
+public/
+  FallBack.png
+  file.svg
+  globe.svg
+  nexopod-auth-brand.png
+  next.svg
+  vercel.svg
+  window.svg
+services/
+  api.ts
+  authService.ts
+  storeService.ts
+stores/
+  authStore.ts
+.gitignore
+AGENTS.md
+eslint.config.mjs
+next.config.ts
+package.json
+README.md
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="components/dashboard/DashboardAuthGuard.tsx">
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import Navbar from "@/components/dashboard/Navbar";
+import { useAuthStore } from "@/stores/authStore";
+
+export default function DashboardAuthGuard({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    const router = useRouter();
+
+    const isHydrated = useAuthStore((state) => state.isHydrated);
+    const isAuthenticated = useAuthStore(
+        (state) => state.isAuthenticated
+    );
+    const hydrateSession = useAuthStore(
+        (state) => state.hydrateSession
+    );
+
+    useEffect(() => {
+        hydrateSession();
+    }, [hydrateSession]);
+
+    useEffect(() => {
+        if (isHydrated && !isAuthenticated) {
+            router.replace("/login");
+        }
+    }, [isHydrated, isAuthenticated, router]);
+
+    if (!isHydrated || !isAuthenticated) {
+        return null;
+    }
+
+    return (
+        <>
+            <Navbar />
+            <div>{children}</div>
+        </>
+    );
+}
+</file>
+
+<file path="stores/authStore.ts">
+import { create } from "zustand";
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+interface AuthState {
+  token: string | null;
+  user: AuthUser | null;
+  isAuthenticated: boolean;
+  isHydrated: boolean;
+
+  setSession: (token: string, user: AuthUser) => void;
+  hydrateSession: () => void;
+  clearSession: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  token: null,
+  user: null,
+  isAuthenticated: false,
+  isHydrated: false,
+
+  // Save the login session.
+  setSession: (token, user) => {
+    sessionStorage.setItem("nexopodToken", token);
+    sessionStorage.setItem("nexopodUser", JSON.stringify(user));
+
+    set({
+      token,
+      user,
+      isAuthenticated: true,
+      isHydrated: true,
+    });
+  },
+
+  // Restore the existing session when the app loads.
+  hydrateSession: () => {
+    const token = sessionStorage.getItem("nexopodToken");
+    const savedUser = sessionStorage.getItem("nexopodUser");
+
+    if (!token || !savedUser) {
+      set({
+        token: null,
+        user: null,
+        isAuthenticated: false,
+        isHydrated: true,
+      });
+      return;
+    }
+
+    try {
+      const user = JSON.parse(savedUser) as AuthUser;
+
+      set({
+        token,
+        user,
+        isAuthenticated: true,
+        isHydrated: true,
+      });
+    } catch {
+      sessionStorage.removeItem("nexopodToken");
+      sessionStorage.removeItem("nexopodUser");
+
+      set({
+        token: null,
+        user: null,
+        isAuthenticated: false,
+        isHydrated: true,
+      });
+    }
+  },
+
+  // Clear the session during logout.
+  clearSession: () => {
+    sessionStorage.removeItem("nexopodToken");
+    sessionStorage.removeItem("nexopodUser");
+
+    set({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      isHydrated: true,
+    });
+  },
+}));
+</file>
+
+<file path="app/dashboard/layout.tsx">
+import DashboardAuthGuard from "@/components/dashboard/DashboardAuthGuard";
+
+export const instant = false;
+
+export default function DashboardLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <DashboardAuthGuard>
+            {children}
+        </DashboardAuthGuard>
+    );
+}
+</file>
+
+<file path="app/login/page.tsx">
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import AuthLayout from "@/components/AuthLayout";
+import { loginUser, getRegistrationStatus } from "@/services/authService";
+import { useAuthStore } from "@/stores/authStore";
+
+export default function LoginPage() {
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const setSession = useAuthStore((state) => state.setSession);
+
+  useEffect(() => {
+    const checkRegistration = async () => {
+      try {
+        const result = await getRegistrationStatus();
+        setRegistrationOpen(result.data.registrationOpen);
+      } catch (error) {
+        console.error("Failed to check registration status:", error);
+        setRegistrationOpen(false);
+      }
+    };
+
+    checkRegistration();
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await loginUser({ phone, password });
+
+      if (!result.data) {
+        throw new Error("Invalid login response from server");
+      }
+
+      setSession(result.data.token, {
+    id: result.data.user.id,
+    name: result.data.user.name,
+    phone: result.data.user.phone,
+});
+
+      window.location.href = "/dashboard";
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Login failed. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout mode="login">
+      <div className="w-full max-w-md">
+        <div className="mb-8">
+          <p className="mb-3 text-sm font-semibold tracking-[0.2em] text-blue-600">
+            NEXOPOD
+          </p>
+
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Welcome back
+          </h1>
+
+          <p className="mt-2 text-sm text-gray-500">
+            Sign in to continue to NexoPod.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label
+              htmlFor="phone"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Phone number
+            </label>
+
+            <div className="flex w-full overflow-hidden rounded-xl border border-gray-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
+              <span className="flex items-center border-r border-gray-300 bg-gray-50 px-4 text-sm font-medium text-gray-700">
+                +91
+              </span>
+
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(event) =>
+                  setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))
+                }
+                placeholder="Enter 10-digit number"
+                required
+                minLength={10}
+                maxLength={10}
+                pattern="[0-9]{10}"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                className="w-full bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Password
+            </label>
+
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              required
+              autoComplete="current-password"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600"
+            >
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        {registrationOpen && (
+          <p className="mt-6 text-center text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Create account
+            </Link>
+          </p>
+        )}
+      </div>
+    </AuthLayout>
+  );
+}
+</file>
+
+<file path="app/signup/page.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+    UserRound,
+    Phone,
+    LockKeyhole,
+    Eye,
+    EyeOff,
+    ArrowRight,
+    ShieldCheck,
+    RefreshCw,
+} from "lucide-react";
+
+import AuthLayout from "@/components/AuthLayout";
+import {
+    registerUser,
+    getRegistrationStatus,
+} from "@/services/authService";
+
+type RegistrationState = "checking" | "open" | "closed" | "error";
+
+export default function SignupPage() {
+    const [name, setName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [password, setPassword] = useState("");
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const [registrationState, setRegistrationState] =
+        useState<RegistrationState>("checking");
+
+    const checkRegistration = async () => {
+        setRegistrationState("checking");
+
+        try {
+            const result = await getRegistrationStatus();
+
+            setRegistrationState(
+                result.data.registrationOpen ? "open" : "closed"
+            );
+        } catch (err) {
+            console.error("Registration availability check failed:", err);
+            setRegistrationState("error");
+        }
+    };
+
+    useEffect(() => {
+        checkRegistration();
+    }, []);
+
+    const handleSubmit = async (
+        event: React.FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        setError("");
+        setSuccess("");
+
+        if (!/^\d{10}$/.test(phone)) {
+            setError("Please enter a valid 10-digit phone number.");
+            return;
+        }
+
+        if (password.length < 8) {
+            setError("Password must contain at least 8 characters.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const result = await registerUser({
+                name: name.trim(),
+                phone,
+                password,
+            });
+
+            setSuccess(
+                result.message || "Your account has been created successfully."
+            );
+
+            setName("");
+            setPhone("");
+            setPassword("");
+
+            await checkRegistration();
+        } catch (err) {
+            console.error("Registration failed:", err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Registration failed. Please try again."
+            );
+
+            try {
+                const result = await getRegistrationStatus();
+
+                setRegistrationState(
+                    result.data.registrationOpen ? "open" : "closed"
+                );
+            } catch {
+                // Keep the current page state if status check fails.
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (registrationState === "checking") {
+        return (
+            <AuthLayout mode="signup">
+                <div className="py-12 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf2ed] text-[#385640]">
+                        <RefreshCw size={22} className="animate-spin" />
+                    </div>
+
+                    <p className="mt-5 text-sm font-medium text-[#59645a]">
+                        Checking registration availability...
+                    </p>
+                </div>
+            </AuthLayout>
+        );
+    }
+
+    if (registrationState === "error") {
+        return (
+            <AuthLayout mode="signup">
+                <div className="py-8 text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                        <RefreshCw size={24} />
+                    </div>
+
+                    <h2 className="mt-6 text-2xl font-semibold tracking-tight text-[#26352b]">
+                        Unable to connect
+                    </h2>
+
+                    <p className="mt-3 text-sm leading-6 text-[#788078]">
+                        We couldn't check registration availability.
+                        Please try again.
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={checkRegistration}
+                        className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#263d30] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#385640]"
+                    >
+                        Try again
+                        <RefreshCw size={16} />
+                    </button>
+                </div>
+            </AuthLayout>
+        );
+    }
+
+    if (registrationState === "closed") {
+        return (
+            <AuthLayout mode="signup">
+                <div className="py-5">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf2ed] text-[#385640]">
+                        <ShieldCheck size={30} strokeWidth={1.6} />
+                    </div>
+
+                    <p className="mt-7 text-xs font-semibold uppercase tracking-[0.18em] text-[#819080]">
+                        Private access
+                    </p>
+
+                    <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[#26352b]">
+                        Registration is closed.
+                    </h2>
+
+                    <p className="mt-4 text-sm leading-7 text-[#788078]">
+                        The NexoPod Store Creator account has already
+                        been registered. New account creation is not
+                        available.
+                    </p>
+
+                    <div className="mt-7 rounded-xl border border-[#e7ebe5] bg-[#f8f9f6] p-4">
+                        <p className="text-sm font-semibold text-[#39483b]">
+                            Already have an account?
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-[#838b82]">
+                            Sign in using your registered phone number
+                            and password.
+                        </p>
+                    </div>
+
+                    <Link
+                        href="/login"
+                        className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#263d30] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#385640]"
+                    >
+                        Go to login
+                        <ArrowRight size={17} />
+                    </Link>
+                </div>
+            </AuthLayout>
+        );
+    }
+
+    return (
+        <AuthLayout mode="signup">
+            <div>
+                <div className="mb-8">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#819080]">
+                        Create your workspace
+                    </p>
+
+                    <h2 className="text-3xl font-semibold tracking-[-0.055em] text-[#26352b] sm:text-4xl">
+                        Create your account
+                    </h2>
+
+                    <p className="mt-3 text-sm leading-6 text-[#838b82]">
+                        Set up your NexoPod Store Creator account.
+                    </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Name */}
+                    <div>
+                        <label
+                            htmlFor="signup-name"
+                            className="mb-2 block text-sm font-medium text-[#414b42]"
+                        >
+                            Full name
+                        </label>
+
+                        <div className="flex items-center rounded-xl border border-[#e2e7e1] bg-white px-4 transition focus-within:border-[#617d65] focus-within:ring-2 focus-within:ring-[#617d65]/10">
+                            <UserRound size={18} className="shrink-0 text-[#929c91]" />
+
+                            <input
+                                id="signup-name"
+                                type="text"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                                placeholder="Enter your full name"
+                                required
+                                minLength={2}
+                                maxLength={100}
+                                autoComplete="name"
+                                className="w-full bg-transparent px-3 py-3.5 text-sm text-[#26352b] outline-none placeholder:text-[#a5aca4]"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                        <label
+                            htmlFor="signup-phone"
+                            className="mb-2 block text-sm font-medium text-[#414b42]"
+                        >
+                            Phone number
+                        </label>
+
+                        <div className="flex overflow-hidden rounded-xl border border-[#e2e7e1] bg-white transition focus-within:border-[#617d65] focus-within:ring-2 focus-within:ring-[#617d65]/10">
+                            <span className="flex items-center gap-2 border-r border-[#e8ebe6] bg-[#f8f9f6] px-3 text-sm font-medium text-[#59645a]">
+                                <Phone size={16} />
+                                +91
+                            </span>
+
+                            <input
+                                id="signup-phone"
+                                type="tel"
+                                value={phone}
+                                onChange={(event) =>
+                                    setPhone(
+                                        event.target.value.replace(/\D/g, "").slice(0, 10)
+                                    )
+                                }
+                                placeholder="10-digit mobile number"
+                                required
+                                minLength={10}
+                                maxLength={10}
+                                pattern="[0-9]{10}"
+                                inputMode="numeric"
+                                autoComplete="tel-national"
+                                className="w-full bg-transparent px-3 py-3.5 text-sm text-[#26352b] outline-none placeholder:text-[#a5aca4]"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                        <label
+                            htmlFor="signup-password"
+                            className="mb-2 block text-sm font-medium text-[#414b42]"
+                        >
+                            Password
+                        </label>
+
+                        <div className="flex items-center rounded-xl border border-[#e2e7e1] bg-white px-4 transition focus-within:border-[#617d65] focus-within:ring-2 focus-within:ring-[#617d65]/10">
+                            <LockKeyhole size={18} className="shrink-0 text-[#929c91]" />
+
+                            <input
+                                id="signup-password"
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                placeholder="Create a password"
+                                required
+                                minLength={8}
+                                maxLength={72}
+                                autoComplete="new-password"
+                                className="w-full bg-transparent px-3 py-3.5 text-sm text-[#26352b] outline-none placeholder:text-[#a5aca4]"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                className="shrink-0 text-[#929c91] transition hover:text-[#263d30]"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+
+                        <p className="mt-2 text-xs text-[#929a91]">
+                            Use at least 8 characters.
+                        </p>
+                    </div>
+
+                    {error && (
+                        <div
+                            role="alert"
+                            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600"
+                        >
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div
+                            role="status"
+                            className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
+                        >
+                            {success}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#263d30] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#385640] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {loading ? (
+                            <>
+                                <RefreshCw size={17} className="animate-spin" />
+                                Creating account...
+                            </>
+                        ) : (
+                            <>
+                                Create account
+                                <ArrowRight size={17} />
+                            </>
+                        )}
+                    </button>
+                </form>
+
+                <p className="mt-7 text-center text-sm text-[#838b82]">
+                    Already have an account?{" "}
+                    <Link
+                        href="/login"
+                        className="font-semibold text-[#385640] hover:underline"
+                    >
+                        Sign in
+                    </Link>
+                </p>
+            </div>
+        </AuthLayout>
+    );
+}
+</file>
+
+<file path="app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Create Next App",
+  description: "Generated by create next app",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="components/dashboard/Navbar.tsx">
+"use client";
+
+import useClickOutside from "@/hooks/useClickOutside";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
+
+import Link from "next/link";
+import {
+  Store,
+  Plus,
+  Zap,
+  Clock3,
+  UserRound,
+  MapPinned,
+  LayoutDashboard,
+  LogOut,
+} from "lucide-react";
+import { usePathname } from "next/navigation";
+
+export default function Navbar() {
+  const pathname = usePathname();
+
+  const router = useRouter();
+
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const closeProfile = () => setProfileOpen(false);
+
+  const profileRef = useClickOutside<HTMLDivElement>(closeProfile);
+
+ const user = useAuthStore((state) => state.user);
+const clearSession = useAuthStore((state) => state.clearSession);
+
+const handleLogout = () => {
+  clearSession();
+  router.replace("/login");
+};
+
+  const isAddStoreActive = pathname === "/dashboard/add-store";
+  const isStoresActive = pathname === "/dashboard/stores";
+
+  return (
+    <header className="relative z-10 w-full px-4 pt-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-full border border-[#e3eeee] bg-white/95 px-4 py-2 shadow-[0_5px_25px_rgba(18,61,74,0.08)] backdrop-blur-md sm:px-6">
+        {/* Brand */}
+        <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#079d98] text-white">
+            <Store size={20} />
+          </span>
+
+          <span className="text-xl font-bold tracking-tight text-[#123d4a]">
+            NexoPod
+          </span>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="flex items-center gap-1 overflow-x-auto">
+          <Link
+            href="/dashboard"
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-sm font-medium transition ${
+              pathname === "/dashboard"
+                ? "bg-[#079d98] text-white"
+                : "text-[#536b72] hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+            }`}
+          >
+            <LayoutDashboard size={17} />
+            <span>Dashboard</span>
+          </Link>
+
+          <Link
+            href="/dashboard/add-store"
+            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+              isAddStoreActive
+                ? "bg-[#079d98] text-white"
+                : "text-[#536b72] hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+            }`}
+          >
+            <Plus size={17} />
+            <span>Add Store</span>
+          </Link>
+
+          <Link
+            href="/dashboard/stores"
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-sm font-medium transition ${
+              isStoresActive
+                ? "bg-[#079d98] text-white"
+                : "text-[#536b72] hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+            }`}
+          >
+            <MapPinned size={17} />
+            <span>Stores</span>
+          </Link>
+
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-sm font-medium text-[#536b72] transition hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+          >
+            <Zap size={17} />
+            <span className="hidden md:inline">Phone Charging</span>
+          </button>
+
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-sm font-medium text-[#536b72] transition hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+          >
+            <Clock3 size={17} />
+            <span className="hidden md:inline">Pick Me Later</span>
+          </button>
+        </nav>
+
+        {/* Profile */}
+        <div ref={profileRef} className="relative shrink-0">
+          <button
+            type="button"
+            aria-label="Profile"
+            aria-expanded={profileOpen}
+            onClick={() => setProfileOpen((open) => !open)}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e3eceb] text-[#087d7b] transition hover:bg-[#eaf7f5]"
+          >
+            <UserRound size={19} />
+          </button>
+
+          {profileOpen && (
+            <div className="absolute right-0 top-14 z-50 w-40 rounded-2xl border border-[#e3edeb] bg-white p-4 shadow-xl">
+              <div className="mb-3">
+                <p className="font-semibold text-[#123d4a]">
+                  {user?.name || "Store Creator"}
+                </p>
+
+                <p className="mt-1 text-sm text-[#70858a]">
+                  {user?.phone || "Phone number unavailable"}
+                </p>
+              </div>
+
+              <div className="border-t border-[#e3edeb] pt-3">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  <LogOut size={17} />
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+</file>
+
+<file path="components/AuthLayout.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getRegistrationStatus } from "@/services/authService";
+
+interface AuthLayoutProps {
+  children: React.ReactNode;
+  mode: "login" | "signup";
+}
+
+export default function AuthLayout({ children, mode }: AuthLayoutProps) {
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+
+  useEffect(() => {
+    const checkRegistration = async () => {
+      try {
+        const result = await getRegistrationStatus();
+        setRegistrationOpen(result.data.registrationOpen);
+      } catch (error) {
+        console.error("Failed to check registration status:", error);
+        setRegistrationOpen(false);
+      }
+    };
+
+    checkRegistration();
+  }, []);
+
+  return (
+    <main
+      className="flex min-h-screen items-center justify-end overflow-hidden bg-[#f7ffff] bg-no-repeat px-4 py-6 sm:px-8 lg:px-12"
+      style={{
+        backgroundImage: "url('/nexopod-auth-brand.png')",
+        backgroundSize: "100% auto",
+        backgroundPosition: "50% center",
+        backgroundRepeat: "no-repeat",
+        backgroundColor: "#f7ffff",
+      }}
+    >
+      {/* Authentication panel overlays the empty right side */}
+      <section className="w-full max-w-[490px] rounded-[26px] border border-white/80 bg-white/95 px-6 py-8 shadow-[0_15px_50px_rgba(12,75,80,0.10)] backdrop-blur-sm sm:px-10 sm:py-10 lg:mr-[3%] lg:px-12">
+        {/* Mobile brand */}
+        <Link
+          href="/"
+          className="mb-7 flex items-center justify-center gap-2 lg:hidden"
+        >
+          <span className="text-xl font-bold text-[#123d4a]">NexoPod</span>
+        </Link>
+
+        {/* Authentication tabs */}
+        <div
+          className={`mb-8 grid border-b border-[#e1e9e9] ${
+            registrationOpen ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
+          <Link
+            href="/login"
+            className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
+              mode === "login"
+                ? "border-[#079d98] text-[#087d7b]"
+                : "border-transparent text-[#718087] hover:text-[#123d4a]"
+            }`}
+          >
+            Login
+          </Link>
+
+          {registrationOpen && (
+            <Link
+              href="/signup"
+              className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
+                mode === "signup"
+                  ? "border-[#079d98] text-[#087d7b]"
+                  : "border-transparent text-[#718087] hover:text-[#123d4a]"
+              }`}
+            >
+              Register
+            </Link>
+          )}
+        </div>
+
+        {children}
+      </section>
+    </main>
+  );
+}
+</file>
+
+<file path="components/ImageWithFallback.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+
+interface ImageWithFallbackProps {
+  src?: string | null;
+  alt: string;
+  className?: string;
+}
+
+export default function ImageWithFallback({
+  src,
+  alt,
+  className,
+}: ImageWithFallbackProps) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  return (
+    <img
+      src={hasError || !src ? "/FallBack.png" : src}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (!hasError) {
+          setHasError(true);
+        }
+      }}
+    />
+  );
+}
+</file>
+
+<file path="hooks/useClickOutside.ts">
+import { useEffect, useRef } from "react";
+
+export default function useClickOutside<T extends HTMLElement>(
+    onOutsideClick: () => void
+) {
+    const ref = useRef<T>(null);
+
+    useEffect(() => {
+        const handlePointerDown = (event: PointerEvent) => {
+            if (
+                ref.current &&
+                !ref.current.contains(event.target as Node)
+            ) {
+                onOutsideClick();
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                onOutsideClick();
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [onOutsideClick]);
+
+    return ref;
+}
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="services/api.ts">
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+}
+
+export default API_BASE_URL;
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
+
+<file path="AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+  experimental: {
+  agentFeedback: true,
+  instantInsights: {
+    validationLevel: "manual-warning",
+  },
+},
+  cacheComponents: true,
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="app/globals.css">
+@import "tailwindcss";
+
+/* ==============================
+   LIGHT THEME (DEFAULT)
+================================ */
+
+:root,
+[data-theme="light"] {
+    color-scheme: light;
+
+    --background: #f4f9f8;
+    --foreground: #123d4a;
+
+    --surface: #ffffff;
+    --surface-secondary: #eaf8f6;
+
+    --primary: #079d98;
+    --primary-hover: #078b86;
+
+    --text-primary: #123d4a;
+    --text-secondary: #70858a;
+
+    --border: #e3edeb;
+    --navbar: rgba(255, 255, 255, 0.95);
+}
+
+/* ==============================
+   DARK THEME
+================================ */
+
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    --background: #101718;
+    --foreground: #e8f4f2;
+
+    --surface: #192324;
+    --surface-secondary: #203131;
+
+    --primary: #12b8ae;
+    --primary-hover: #0fa49c;
+
+    --text-primary: #e8f4f2;
+    --text-secondary: #a0b6b4;
+
+    --border: #304342;
+    --navbar: rgba(25, 35, 36, 0.95);
+}
+
+/* ==============================
+   TAILWIND THEME VARIABLES
+================================ */
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+}
+
+/* ==============================
+   GLOBAL STYLES
+================================ */
+
+html {
+    min-height: 100%;
+    background: var(--background);
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+    transition: background-color 200ms ease, color 200ms ease;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+</file>
+
+<file path="services/authService.ts">
+import API_BASE_URL from "./api";
+
+interface RegisterData {
+    name: string;
+    phone: string;
+    password: string;
+}
+
+interface RegisterResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        id: string;
+        name: string;
+        phone: string;
+        createdAt: string;
+    };
+}
+
+interface RegistrationStatusResponse {
+    success: boolean;
+    data: {
+        registrationOpen: boolean;
+    };
+}
+
+interface LoginData {
+    phone: string;
+    password: string;
+}
+
+interface LoginResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        token: string;
+        user: {
+            id: string;
+            name: string;
+            phone: string;
+        };
+    };
+}
+
+export const registerUser = async (
+    userData: RegisterData
+): Promise<RegisterResponse> => {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+    });
+
+    const result: RegisterResponse = await response.json();
+
+    if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+    }
+
+    return result;
+};
+
+export const getRegistrationStatus =
+    async (): Promise<RegistrationStatusResponse> => {
+        const response = await fetch(
+            `${API_BASE_URL}/api/auth/registration-status`,
+            {
+                method: "GET",
+                cache: "no-store",
+            }
+        );
+
+        const result: RegistrationStatusResponse = await response.json();
+
+        if (!response.ok) {
+            throw new Error("Unable to check registration status.");
+        }
+
+        return result;
+    };
+    
+export const loginUser = async (
+    loginData: LoginData
+): Promise<LoginResponse> => {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(loginData),
+    });
+
+    const result: LoginResponse = await response.json();
+
+    if (!response.ok) {
+        throw new Error(result.message || "Login failed");
+    }
+
+    return result;
+};
+</file>
+
+<file path="package.json">
+{
+  "name": "pickmeup-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "lucide-react": "^1.68.0",
+    "next": "16.4.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="app/dashboard/add-store/page.tsx">
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  ImagePlus,
+  MapPin,
+  Phone,
+  Store,
+  Upload,
+  X,
+  LoaderCircle,
+  CheckCircle2,
+  Plus,
+  Clock,
+  CalendarDays,
+  Copy,
+  Zap,
+  Package,
+  Layers,
+} from "lucide-react";
+
+import { createStore } from "@/services/storeService";
+import ImageWithFallback from "@/components/ImageWithFallback";
+
+type DayKey =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+type DayTiming = {
+  isClosed: boolean;
+  openTime: string;
+  closeTime: string;
+};
+
+const DAYS: { key: DayKey; label: string }[] = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" },
+];
+
+const DEFAULT_WEEKLY_TIMINGS: Record<DayKey, DayTiming> = {
+  monday: { isClosed: false, openTime: "10:00", closeTime: "21:00" },
+  tuesday: { isClosed: false, openTime: "10:00", closeTime: "21:00" },
+  wednesday: { isClosed: false, openTime: "10:00", closeTime: "21:00" },
+  thursday: { isClosed: false, openTime: "10:00", closeTime: "21:00" },
+  friday: { isClosed: false, openTime: "10:00", closeTime: "22:00" },
+  saturday: { isClosed: false, openTime: "10:00", closeTime: "22:00" },
+  sunday: { isClosed: false, openTime: "11:00", closeTime: "20:00" },
+};
+
+export default function AddStorePage() {
+  const router = useRouter();
+
+  const mainImageRef = useRef<HTMLInputElement>(null);
+  const additionalImagesRef = useRef<HTMLInputElement>(null);
+
+  const [name, setName] = useState("");
+  const [addressLink, setAddressLink] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [services, setServices] = useState<string[]>([]);
+
+  const [weeklyTimings, setWeeklyTimings] = useState<Record<DayKey, DayTiming>>(
+    DEFAULT_WEEKLY_TIMINGS,
+  );
+
+  const [openTime, setOpenTime] = useState("10:00");
+  const [closeTime, setCloseTime] = useState("21:00");
+
+  const [mainImage, setMainImage] = useState<File | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<File[]>([]);
+
+  const [mainPreview, setMainPreview] = useState("");
+  const [additionalPreviews, setAdditionalPreviews] = useState<string[]>([]);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Release preview URLs when files change or component unmounts.
+  useEffect(() => {
+    return () => {
+      if (mainPreview) URL.revokeObjectURL(mainPreview);
+      additionalPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [mainPreview, additionalPreviews]);
+
+  const validateImage = (file: File) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedTypes.includes(file.type)) {
+      return "Only JPG, PNG and WEBP images are allowed.";
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return "Each image must be smaller than 5 MB.";
+    }
+
+    return "";
+  };
+
+  const handleMainImage = (file?: File) => {
+    if (!file) return;
+
+    const validationError = validateImage(file);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError("");
+    setMainImage(file);
+    setMainPreview(URL.createObjectURL(file));
+  };
+
+  const handleAdditionalImages = (files: FileList | null) => {
+    if (!files) return;
+
+    setError("");
+
+    const selectedFiles = Array.from(files);
+
+    if (additionalImages.length + selectedFiles.length > 4) {
+      setError("You can upload a maximum of 4 additional images.");
+      return;
+    }
+
+    const validationError = selectedFiles.map(validateImage).find(Boolean);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setAdditionalImages((previous) => [...previous, ...selectedFiles]);
+
+    setAdditionalPreviews((previous) => [
+      ...previous,
+      ...selectedFiles.map((file) => URL.createObjectURL(file)),
+    ]);
+  };
+
+  const removeMainImage = () => {
+    setMainImage(null);
+    setMainPreview("");
+
+    if (mainImageRef.current) {
+      mainImageRef.current.value = "";
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalImages((previous) => previous.filter((_, i) => i !== index));
+
+    setAdditionalPreviews((previous) => previous.filter((_, i) => i !== index));
+  };
+
+  const updateDayTiming = (
+    day: DayKey,
+    field: keyof DayTiming,
+    value: string | boolean,
+  ) => {
+    setWeeklyTimings((previous) => ({
+      ...previous,
+      [day]: {
+        ...previous[day],
+        [field]: value,
+      },
+    }));
+  };
+
+  const applyToAllDays = () => {
+    const mondayTiming = weeklyTimings.monday;
+
+    setWeeklyTimings(
+      Object.fromEntries(
+        DAYS.map(({ key }) => [key, { ...mondayTiming }]),
+      ) as Record<DayKey, DayTiming>,
+    );
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    if (!mainImage) {
+      setError("Please upload the main store image.");
+      return;
+    }
+
+    if (services.length === 0) {
+      setError("Please select at least one store service.");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(contactNumber)) {
+      setError("Enter a valid 10-digit contact number.");
+      return;
+    }
+
+    try {
+      const parsedUrl = new URL(addressLink);
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        setError("Please enter a valid Google Maps link.");
+        return;
+      }
+    } catch {
+      setError("Please enter a valid Google Maps link.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Convert 24h browser time (e.g., "21:00") to 12h AM/PM format
+      const formatTo12Hour = (time24: string) => {
+        if (!time24) return "";
+
+        const [h, m] = time24.split(":");
+        const hours = parseInt(h, 10);
+        const ampm = hours >= 12 ? "PM" : "AM";
+        const hours12 = hours % 12 || 12;
+
+        return `${hours12.toString().padStart(2, "0")}:${m} ${ampm}`;
+      };
+
+      const formattedWeeklyTimings = Object.fromEntries(
+        DAYS.map(({ key }) => {
+          const timing = weeklyTimings[key];
+
+          return [
+            key,
+            {
+              isClosed: timing.isClosed,
+              openTime: timing.isClosed ? "" : formatTo12Hour(timing.openTime),
+              closeTime: timing.isClosed
+                ? ""
+                : formatTo12Hour(timing.closeTime),
+            },
+          ];
+        }),
+      );
+
+      const result = await createStore({
+        name: name.trim(),
+        addressLink: addressLink.trim(),
+        contactNumber,
+        timings: "See weekly schedule",
+        services,
+        weeklyTimings: formattedWeeklyTimings,
+        image: mainImage,
+        images: additionalImages,
+      });
+
+      setSuccess(result.message || "Store created successfully.");
+
+      // Clear the form after successful creation.
+      setName("");
+      setAddressLink("");
+      setContactNumber("");
+      setServices([]);
+      setWeeklyTimings(DEFAULT_WEEKLY_TIMINGS);
+      setOpenTime("09:00");
+      setCloseTime("21:00");
+      setMainImage(null);
+      setAdditionalImages([]);
+      setMainPreview("");
+      setAdditionalPreviews([]);
+
+      if (mainImageRef.current) {
+        mainImageRef.current.value = "";
+      }
+
+      if (additionalImagesRef.current) {
+        additionalImagesRef.current.value = "";
+      }
+
+      // Return to the dashboard after successful creation.
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1200);
+    } catch (err) {
+      console.error("Store creation failed:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to create store. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#f4f9f8] px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-7xl">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="mb-7 flex items-center gap-2 text-sm font-medium text-[#536b72] hover:text-[#079d98]"
+        >
+          <ArrowLeft size={18} />
+          Back to dashboard
+        </button>
+
+        <div className="mb-8">
+          <div className="flex items-center gap-2 text-[#079d98]">
+            <Store size={19} />
+            <span className="text-xs font-bold uppercase tracking-wider">
+              Store management
+            </span>
+          </div>
+
+          <h1 className="mt-3 text-3xl font-bold text-[#123d4a]">
+            Add a new store
+          </h1>
+
+          <p className="mt-2 text-sm text-[#70858a]">
+            Enter your store details and upload its images.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Store name */}
+
+          {/* Store Details */}
+          <section className="grid grid-cols-1 gap-6 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[240px_1fr] lg:gap-10">
+            {/* Section Information */}
+            <div className="flex items-center gap-4 border-b border-[#dce7e5] pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f8f5] text-[#079d98]">
+                <Store size={26} />
+              </div>
+
+              <div>
+                <h2 className="text-xl font-bold text-[#123d4a]">
+                  Store Details
+                </h2>
+                <p className="mt-1 text-sm text-[#70858a]">
+                  Basic information about the store.
+                </p>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+              {/* Store Name */}
+              <div>
+                <label
+                  htmlFor="store-name"
+                  className="mb-2 block text-sm font-semibold text-[#123d4a]"
+                >
+                  Store name *
+                </label>
+
+                <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                  <Store size={18} className="shrink-0 text-[#829397]" />
+
+                  <input
+                    id="store-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter store name"
+                    minLength={2}
+                    maxLength={100}
+                    required
+                    className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Number */}
+              <div>
+                <label
+                  htmlFor="store-phone"
+                  className="mb-2 block text-sm font-semibold text-[#123d4a]"
+                >
+                  Contact number *
+                </label>
+
+                <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                  <Phone size={18} className="shrink-0 text-[#829397]" />
+
+                  <span className="border-r border-[#e5ebea] px-3 py-3 text-sm text-[#536b72]">
+                    +91
+                  </span>
+
+                  <input
+                    id="store-phone"
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) =>
+                      setContactNumber(
+                        e.target.value.replace(/\D/g, "").slice(0, 10),
+                      )
+                    }
+                    placeholder="10-digit phone number"
+                    required
+                    maxLength={10}
+                    inputMode="numeric"
+                    className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Google Maps Link */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="store-address"
+                  className="mb-2 block text-sm font-semibold text-[#123d4a]"
+                >
+                  Google Maps address link *
+                </label>
+
+                <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                  <MapPin size={18} className="shrink-0 text-[#829397]" />
+
+                  <input
+                    id="store-address"
+                    type="url"
+                    value={addressLink}
+                    onChange={(e) => setAddressLink(e.target.value)}
+                    placeholder="Paste Google Maps link"
+                    required
+                    className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div></div>
+
+          {/* Operating Timings */}
+
+          {/* Store Services and Weekly Schedule */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.85fr_1.5fr]">
+            {/* Store Services */}
+            <section className="rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-7 flex items-start gap-3">
+                <div className="rounded-xl bg-[#e8f8f5] p-3 text-[#079d98]">
+                  <Layers size={24} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-[#123d4a]">
+                    Store Services
+                  </h2>
+                  <p className="text-sm text-[#70858a]">
+                    Select one or more services offered at this store.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  {
+                    name: "Phone Charging",
+                    description:
+                      "Customer can charge their phone at the store.",
+                    icon: Zap,
+                    color: "bg-[#d7faf1] text-[#00a991]",
+                  },
+                  {
+                    name: "Pick Me Later",
+                    description: "Customer can use the pick-up-later service.",
+                    icon: Package,
+                    color: "bg-[#eee7ff] text-[#8b5cf6]",
+                  },
+                ].map((service) => {
+                  const ServiceIcon = service.icon;
+                  const selected = services.includes(service.name);
+
+                  return (
+                    <button
+                      key={service.name}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setServices((previous) =>
+                          selected
+                            ? previous.filter((item) => item !== service.name)
+                            : [...previous, service.name],
+                        )
+                      }
+                      className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition ${
+                        selected
+                          ? "border-[#079d98] bg-[#f0fbf9]"
+                          : "border-[#dce7e5] hover:border-[#079d98]"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${service.color}`}
+                      >
+                        <ServiceIcon size={25} />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-[#123d4a]">
+                          {service.name}
+                        </span>
+                        <span className="mt-1 block text-xs text-[#70858a]">
+                          {service.description}
+                        </span>
+                      </span>
+
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                          selected
+                            ? "border-[#079d98] bg-[#079d98] text-white"
+                            : "border-[#9aabb0] bg-white"
+                        }`}
+                      >
+                        {selected && <CheckCircle2 size={15} />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Weekly Store Timings */}
+            <section className="min-w-0 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-[#e8f8f5] p-3 text-[#079d98]">
+                    <CalendarDays size={24} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-bold text-[#123d4a]">
+                      Store Timings (Weekly Schedule)
+                    </h2>
+                    <p className="text-sm text-[#70858a]">
+                      Set opening and closing time for each day.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={applyToAllDays}
+                  className="flex items-center gap-2 rounded-lg border border-[#079d98] px-3 py-2 text-xs font-semibold text-[#087d7b] transition hover:bg-[#eaf8f6]"
+                >
+                  <Copy size={15} />
+                  Apply to all days
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="min-w-[650px]">
+                  <div className="grid grid-cols-[1fr_1.15fr_1.15fr_0.7fr] items-center gap-3 rounded-t-lg bg-[#f0f4f6] px-3 py-2 text-xs font-semibold text-[#536b72]">
+                    <span>Day</span>
+                    <span>Opening Time</span>
+                    <span>Closing Time</span>
+                    <span>Status</span>
+                  </div>
+
+                  {DAYS.map(({ key, label }) => {
+                    const timing = weeklyTimings[key];
+
+                    return (
+                      <div
+                        key={key}
+                        className="grid grid-cols-[1fr_1.15fr_1.15fr_0.7fr] items-center gap-3 border-b border-[#e8eeee] px-3 py-2"
+                      >
+                        <span className="text-sm font-semibold text-[#123d4a]">
+                          {label}
+                        </span>
+
+                        <input
+                          type="time"
+                          value={timing.openTime}
+                          disabled={timing.isClosed}
+                          onChange={(e) =>
+                            updateDayTiming(key, "openTime", e.target.value)
+                          }
+                          className="w-full rounded-lg border border-[#cbd9df] bg-white px-2 py-2 text-xs text-[#123d4a] outline-none focus:border-[#079d98] disabled:bg-gray-100 disabled:opacity-50"
+                        />
+
+                        <input
+                          type="time"
+                          value={timing.closeTime}
+                          disabled={timing.isClosed}
+                          onChange={(e) =>
+                            updateDayTiming(key, "closeTime", e.target.value)
+                          }
+                          className="w-full rounded-lg border border-[#cbd9df] bg-white px-2 py-2 text-xs text-[#123d4a] outline-none focus:border-[#079d98] disabled:bg-gray-100 disabled:opacity-50"
+                        />
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!timing.isClosed}
+                          aria-label={`${label} ${timing.isClosed ? "closed" : "open"}`}
+                          onClick={() =>
+                            updateDayTiming(key, "isClosed", !timing.isClosed)
+                          }
+                          className="flex items-center gap-2"
+                        >
+                          <span
+                            className={`relative h-5 w-10 shrink-0 rounded-full transition ${
+                              timing.isClosed ? "bg-gray-300" : "bg-[#079d98]"
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+                                timing.isClosed ? "left-0.5" : "left-[22px]"
+                              }`}
+                            />
+                          </span>
+
+                          <span
+                            className={`text-xs font-medium ${
+                              timing.isClosed
+                                ? "text-gray-500"
+                                : "text-[#079d98]"
+                            }`}
+                          >
+                            {timing.isClosed ? "Closed" : "Open"}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {/* Store Images */}
+          <section className="grid grid-cols-1 gap-6 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[0.8fr_1.1fr_1.3fr]">
+            {/* Section Information */}
+            <div className="flex items-center gap-4 border-b border-[#dce7e5] pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f8f5] text-[#079d98]">
+                <ImagePlus size={26} />
+              </div>
+
+              <div>
+                <h2 className="text-xl font-bold text-[#123d4a]">
+                  Store Images
+                </h2>
+                <p className="mt-1 text-sm text-[#70858a]">
+                  Upload main image and up to 4 additional images.
+                </p>
+              </div>
+            </div>
+
+            {/* Main Store Image */}
+            <div className="lg:border-r lg:border-[#dce7e5] lg:pr-5">
+              <label className="mb-3 block text-sm font-semibold text-[#123d4a]">
+                Main store image *
+              </label>
+
+              <input
+                ref={mainImageRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(e) => handleMainImage(e.target.files?.[0])}
+              />
+
+              {mainPreview ? (
+                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-[#dce7e5] sm:h-40">
+                  <ImageWithFallback
+                    src={mainPreview}
+                    alt="Main store preview"
+                    className="h-full w-full object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={removeMainImage}
+                    aria-label="Remove main image"
+                    className="absolute right-2 top-2 rounded-full bg-white p-2 text-red-600 shadow"
+                  >
+                    <X size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => mainImageRef.current?.click()}
+                    className="absolute bottom-2 right-2 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#087d7b] shadow"
+                  >
+                    Change image
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => mainImageRef.current?.click()}
+                  className="flex h-32 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#8bded4] bg-[#f1fbf9] px-3 text-center transition hover:border-[#079d98] sm:h-40"
+                >
+                  <Upload size={27} className="text-[#079d98]" />
+
+                  <span className="mt-2 text-sm font-bold text-[#123d4a]">
+                    Upload main image
+                  </span>
+
+                  <span className="mt-1 text-xs text-[#70858a]">
+                    JPG, PNG or WEBP · Max 5 MB
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Additional Images */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <label className="text-sm font-semibold text-[#123d4a]">
+                  Additional images
+                </label>
+
+                <span className="text-xs text-[#70858a]">
+                  ({additionalImages.length}/4)
+                </span>
+              </div>
+
+              <input
+                ref={additionalImagesRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                hidden
+                onChange={(e) => {
+                  handleAdditionalImages(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => {
+                  const preview = additionalPreviews[index];
+
+                  return (
+                    <div key={index} className="relative aspect-square min-w-0">
+                      {preview ? (
+                        <div className="h-full w-full overflow-hidden rounded-xl border border-[#dce7e5]">
+                          <ImageWithFallback
+                            src={preview}
+                            alt={`Additional store image ${index + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => removeAdditionalImage(index)}
+                            aria-label={`Remove additional image ${index + 1}`}
+                            className="absolute right-1 top-1 rounded-full bg-white p-1.5 text-red-600 shadow"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => additionalImagesRef.current?.click()}
+                          className="flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#cbd9df] bg-[#f8fbfc] text-[#8297aa] transition hover:border-[#079d98] hover:bg-[#f1fbf9] hover:text-[#079d98]"
+                        >
+                          <ImagePlus size={23} />
+                          <span className="mt-1 text-[11px] font-medium">
+                            Add image
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          {/* Error */}
+          {error && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600"
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Success */}
+          {success && (
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
+            >
+              <CheckCircle2 size={18} />
+              {success}
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#079d98] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#078b86] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? (
+              <>
+                <LoaderCircle size={18} className="animate-spin" />
+                Creating store...
+              </>
+            ) : (
+              <>
+                <Plus size={18} />
+                Create Store
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
+</file>
+
+<file path="app/dashboard/stores/page.tsx">
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  Store,
+  MapPin,
+  Search,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+  ImageOff,
+  ExternalLink,
+  Pencil,
+  Clock,
+  Phone,
+  X,
+  CalendarDays,
+  Copy,
+  Zap,
+  Package,
+  Layers,
+  CheckCircle2,
+} from "lucide-react";
+
+import {
+  getStores,
+  updateStoreStatus,
+  updateStoreDetails,
+  type StoreItem,
+  type PaginationData,
+  type StoreDayTiming,
+} from "@/services/storeService";
+
+import API_BASE_URL from "@/services/api";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import useClickOutside from "@/hooks/useClickOutside";
+
+type DayKey =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+const DAYS: { key: DayKey; label: string }[] = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" },
+];
+
+const DEFAULT_EDIT_WEEKLY_TIMINGS: Record<DayKey, StoreDayTiming> = {
+  monday: { isClosed: false, openTime: "10:00 AM", closeTime: "09:00 PM" },
+  tuesday: { isClosed: false, openTime: "10:00 AM", closeTime: "09:00 PM" },
+  wednesday: { isClosed: false, openTime: "10:00 AM", closeTime: "09:00 PM" },
+  thursday: { isClosed: false, openTime: "10:00 AM", closeTime: "09:00 PM" },
+  friday: { isClosed: false, openTime: "10:00 AM", closeTime: "10:00 PM" },
+  saturday: { isClosed: false, openTime: "10:00 AM", closeTime: "10:00 PM" },
+  sunday: { isClosed: false, openTime: "11:00 AM", closeTime: "08:00 PM" },
+};
+
+export default function StoresPage() {
+  const [stores, setStores] = useState<StoreItem[]>([]);
+  const [pagination, setPagination] = useState<PaginationData | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Filters & Pagination State
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Custom Dropdown State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Modals State
+  const [storeToToggle, setStoreToToggle] = useState<StoreItem | null>(null);
+  const [storeToEdit, setStoreToEdit] = useState<StoreItem | null>(null);
+
+  const [selectedScheduleStore, setSelectedScheduleStore] =
+    useState<StoreItem | null>(null);
+
+  const [editForm, setEditForm] = useState({
+    name: "",
+    contactNumber: "",
+    addressLink: "",
+    openTime: "",
+    closeTime: "",
+  });
+
+  const [editServices, setEditServices] = useState<string[]>([]);
+
+  const [editWeeklyTimings, setEditWeeklyTimings] = useState<
+    Record<DayKey, StoreDayTiming>
+  >(DEFAULT_EDIT_WEEKLY_TIMINGS);
+
+  // Edit Store Image Management
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
+
+  const [newAdditionalImageFiles, setNewAdditionalImageFiles] = useState<
+    File[]
+  >([]);
+  const [newAdditionalImagePreviews, setNewAdditionalImagePreviews] = useState<
+    string[]
+  >([]);
+
+  const [retainedAdditionalImages, setRetainedAdditionalImages] = useState<
+    string[]
+  >([]);
+
+  const mainImageInputRef = useRef<HTMLInputElement>(null);
+
+  const additionalImagesInputRef = useRef<HTMLInputElement>(null);
+
+  const closeEditModal = useCallback(() => {
+    setStoreToEdit(null);
+  }, []);
+
+  const editModalRef = useClickOutside<HTMLFormElement>(closeEditModal);
+
+  const handleAdditionalImagesChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFiles = Array.from(e.target.files || []);
+
+    if (selectedFiles.length === 0) return;
+
+    const availableSlots =
+      4 - retainedAdditionalImages.length - newAdditionalImageFiles.length;
+
+    const imageFiles = selectedFiles.filter((file) =>
+      file.type.startsWith("image/"),
+    );
+
+    const filesToAdd = imageFiles.slice(0, availableSlots);
+
+    if (imageFiles.length !== selectedFiles.length) {
+      alert("Only image files are allowed.");
+    }
+
+    if (imageFiles.length > availableSlots) {
+      alert("You can upload a maximum of 4 additional images.");
+    }
+
+    if (filesToAdd.length > 0) {
+      setNewAdditionalImageFiles((prev) => [...prev, ...filesToAdd]);
+
+      setNewAdditionalImagePreviews((prev) => [
+        ...prev,
+        ...filesToAdd.map((file) => URL.createObjectURL(file)),
+      ]);
+    }
+
+    // Allow selecting the same files again.
+    e.target.value = "";
+  };
+
+  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    setMainImageFile(file);
+    setMainImagePreview(URL.createObjectURL(file));
+
+    // Allow selecting the same file again.
+    e.target.value = "";
+  };
+
+  // Handle click outside for custom dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const fetchStoresData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await getStores({
+        search: debouncedSearch,
+        status: statusFilter,
+        page: currentPage,
+        limit: 10,
+      });
+      setStores(response.data);
+      setPagination(response.pagination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load stores.");
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, statusFilter, currentPage]);
+
+  useEffect(() => {
+    fetchStoresData();
+  }, [fetchStoresData]);
+
+  const selectStatusFilter = (status: "all" | "active" | "inactive") => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+    setIsDropdownOpen(false);
+  };
+
+  // Confirm Toggle Action
+  const handleConfirmToggle = async () => {
+    if (!storeToToggle) return;
+    try {
+      setUpdatingId(storeToToggle._id);
+      await updateStoreStatus(storeToToggle._id, !storeToToggle.isActive);
+      setStores((prev) =>
+        prev.map((store) =>
+          store._id === storeToToggle._id
+            ? { ...store, isActive: !storeToToggle.isActive }
+            : store,
+        ),
+      );
+      setStoreToToggle(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Open Edit Modal
+  const openEditModal = (store: StoreItem) => {
+    // Convert backend 12-hour time into the format required by input[type="time"].
+    const parse12To24 = (time12: string | undefined): string => {
+      if (!time12) return "";
+
+      const match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+      if (!match) return "";
+
+      let hours = Number(match[1]);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+
+      if (period === "AM" && hours === 12) {
+        hours = 0;
+      } else if (period === "PM" && hours !== 12) {
+        hours += 12;
+      }
+
+      return `${String(hours).padStart(2, "0")}:${minutes}`;
+    };
+
+    setEditForm({
+      name: store.name,
+      contactNumber: store.contactNumber,
+      addressLink: store.addressLink,
+      openTime: "",
+      closeTime: "",
+    });
+
+    // Load the saved services.
+    setEditServices(store.services || []);
+
+    // Load each saved day. Use defaults only for stores without weekly timings.
+    const loadedTimings = Object.fromEntries(
+      DAYS.map(({ key }) => {
+        const savedTiming = store.weeklyTimings?.[key];
+        const fallbackTiming = DEFAULT_EDIT_WEEKLY_TIMINGS[key];
+
+        return [
+          key,
+          {
+            isClosed: savedTiming?.isClosed ?? fallbackTiming.isClosed,
+            openTime: parse12To24(
+              savedTiming?.openTime || fallbackTiming.openTime,
+            ),
+            closeTime: parse12To24(
+              savedTiming?.closeTime || fallbackTiming.closeTime,
+            ),
+          },
+        ];
+      }),
+    ) as Record<DayKey, StoreDayTiming>;
+
+    setEditWeeklyTimings(loadedTimings);
+
+    // Reset image selections whenever a store is opened for editing.
+    setMainImageFile(null);
+    setMainImagePreview(null);
+
+    setNewAdditionalImageFiles([]);
+    setNewAdditionalImagePreviews([]);
+
+    setRetainedAdditionalImages(
+      (store.images || []).map((image) => image.path),
+    );
+
+    setStoreToEdit(store);
+  };
+
+  const format24To12 = (time24: string): string => {
+    if (!time24) return "";
+
+    const [hoursString, minutes] = time24.split(":");
+    const hours = Number(hoursString);
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+
+    return `${String(hours12).padStart(2, "0")}:${minutes} ${period}`;
+  };
+
+  const updateEditDayTiming = (
+    day: DayKey,
+    field: keyof StoreDayTiming,
+    value: string | boolean,
+  ) => {
+    setEditWeeklyTimings((previous) => ({
+      ...previous,
+      [day]: {
+        ...previous[day],
+        [field]: value,
+      },
+    }));
+  };
+
+  const applyEditTimingToAllDays = () => {
+    const mondayTiming = editWeeklyTimings.monday;
+
+    setEditWeeklyTimings(
+      Object.fromEntries(
+        DAYS.map(({ key }) => [key, { ...mondayTiming }]),
+      ) as Record<DayKey, StoreDayTiming>,
+    );
+  };
+
+  // Submit Edit
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeToEdit) return;
+
+    try {
+      setUpdatingId(storeToEdit._id);
+
+      const formattedWeeklyTimings = Object.fromEntries(
+        DAYS.map(({ key }) => {
+          const timing = editWeeklyTimings[key];
+
+          return [
+            key,
+            {
+              isClosed: timing.isClosed,
+              openTime: timing.isClosed
+                ? ""
+                : format24To12(timing.openTime || ""),
+              closeTime: timing.isClosed
+                ? ""
+                : format24To12(timing.closeTime || ""),
+            },
+          ];
+        }),
+      ) as Record<DayKey, StoreDayTiming>;
+
+      const updated = await updateStoreDetails(storeToEdit._id, {
+        name: editForm.name,
+        contactNumber: editForm.contactNumber,
+        addressLink: editForm.addressLink,
+
+        timings: "See weekly schedule",
+        services: editServices,
+        weeklyTimings: formattedWeeklyTimings,
+
+        existingImages: retainedAdditionalImages,
+        image: mainImageFile,
+        images: newAdditionalImageFiles,
+      });
+
+      setStores((prev) =>
+        prev.map((s) =>
+          s._id === storeToEdit._id ? { ...s, ...updated.data } : s,
+        ),
+      );
+
+      setStoreToEdit(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update store");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#f4f9f8] px-4 py-8 sm:px-6 relative">
+      <div className="mx-auto w-full max-w-7xl">
+        {/* Header layout matching reference image */}
+        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <div className="flex items-center gap-2 text-[#079d98]">
+              <Store size={19} />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                Store management
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-bold text-[#123d4a]">
+              Locations Directory
+            </h1>
+            <p className="mt-1 text-sm text-[#70858a]">
+              View and manage locations.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#829397]"
+              />
+              <input
+                type="text"
+                placeholder="Search by name or phone..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full rounded-xl border border-[#dce9e6] bg-white py-2.5 pl-9 pr-4 text-sm text-[#123d4a] outline-none transition focus:border-[#079d98] focus:ring-1 focus:ring-[#079d98]"
+              />
+            </div>
+
+            {/* Custom Rotating Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[#dce9e6] bg-white px-4 py-2.5 text-sm font-medium text-[#123d4a] transition hover:bg-[#eaf8f6] min-w-[140px]"
+              >
+                {statusFilter === "all"
+                  ? "All Statuses"
+                  : statusFilter === "active"
+                    ? "Active"
+                    : "Inactive"}
+                <ChevronDown
+                  size={16}
+                  className={`text-[#829397] transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-full rounded-xl border border-[#dce9e6] bg-white p-1.5 shadow-lg z-20">
+                  <button
+                    onClick={() => selectStatusFilter("all")}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[#536b72] hover:bg-[#eaf8f6] hover:text-[#079d98]"
+                  >
+                    All Statuses
+                  </button>
+                  <button
+                    onClick={() => selectStatusFilter("active")}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[#536b72] hover:bg-[#eaf8f6] hover:text-[#079d98]"
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => selectStatusFilter("inactive")}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[#536b72] hover:bg-[#eaf8f6] hover:text-[#079d98]"
+                  >
+                    Inactive
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Data Table */}
+        <div className="overflow-hidden rounded-2xl border border-[#e3edeb] bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] table-fixed text-left text-sm">
+              {/* Store Details 20%, Contact 14%, Schedule 15%, Location 12%, Services 18%, Status 9%, Actions 12% */}
+              <colgroup>
+                <col className="w-[20%]" />
+                <col className="w-[14%]" />
+                <col className="w-[15%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
+                <col className="w-[9%]" />
+                <col className="w-[12%]" />
+              </colgroup>
+
+              <thead className="border-b border-[#e3edeb] bg-[#f8fcfb] text-xs font-semibold uppercase tracking-wider text-[#536b72]">
+                <tr>
+                  <th className="px-6 py-4">Store Details</th>
+                  <th className="px-6 py-4">Contact</th>
+                  <th className="px-10 py-4">Schedule</th>
+                  <th className="px-6 py-4">Location</th>
+                  <th className="px-15 py-4">Services</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e3edeb]">
+                {loading && stores.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center">
+                      <LoaderCircle
+                        size={30}
+                        className="mx-auto animate-spin text-[#079d98]"
+                      />
+                      <p className="mt-3 text-[#70858a]">Loading stores...</p>
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-red-600">
+                      <p className="font-semibold">{error}</p>
+                      <button
+                        onClick={fetchStoresData}
+                        className="mt-3 text-sm underline"
+                      >
+                        Try Again
+                      </button>
+                    </td>
+                  </tr>
+                ) : stores.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-16 text-center text-[#70858a]"
+                    >
+                      <p>No stores found matching your criteria.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  stores.map((store) => (
+                    <tr
+                      key={store._id}
+                      className="transition-colors hover:bg-[#fcfefe]"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#e3edeb] bg-[#eaf3f1]">
+                            <ImageWithFallback
+                              src={
+                                store.image?.path
+                                  ? `${API_BASE_URL}${store.image.path}`
+                                  : null
+                              }
+                              alt={store.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#123d4a]">
+                              {store.name}
+                            </p>
+                            <p className="text-xs text-[#829397]">
+                              Added{" "}
+                              {new Date(store.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-[#123d4a]">
+                          {store.contactNumber}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedScheduleStore(store)}
+                          className="inline-flex items-center gap-2 rounded-3xl border border-[#bde9df] bg-[#eafaf5] px-1 py-2 text-xs font-semibold text-[#087d7b] transition hover:bg-[#d9f5ed]"
+                        >
+                          <CalendarDays size={15} />
+                          View Schedule
+                        </button>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <a
+                          href={store.addressLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[#079d98] hover:underline"
+                        >
+                          <MapPin size={15} />
+                          View Map
+                          <ExternalLink size={13} />
+                        </a>
+                      </td>
+
+                      <td className="px-9 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {store.services && store.services.length > 0 ? (
+                            store.services.map((service) => (
+                              <span
+                                key={service}
+                                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
+                                  service === "Phone Charging"
+                                    ? "bg-[#d7faf1] text-[#008f7b]"
+                                    : service === "Pick Me Later"
+                                      ? "bg-[#eee7ff] text-[#7c3aed]"
+                                      : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {service === "Phone Charging" ? (
+                                  <Zap size={14} />
+                                ) : service === "Pick Me Later" ? (
+                                  <Package size={14} />
+                                ) : null}
+
+                                {service}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-[#829397]">—</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            store.isActive
+                              ? "bg-green-50 text-green-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {store.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openEditModal(store)}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#dce9e6] bg-white text-[#536b72] transition hover:bg-[#eaf8f6] hover:text-[#079d98]"
+                            title="Edit Store Details"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setStoreToToggle(store)}
+                            className={`inline-flex min-w-[90px] shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                              store.isActive
+                                ? "bg-white text-red-600 border border-red-200 hover:bg-red-50"
+                                : "bg-white text-[#079d98] border border-[#dce9e6] hover:bg-[#eaf8f6]"
+                            }`}
+                          >
+                            {store.isActive ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-[#e3edeb] bg-[#f8fcfb] px-6 py-4">
+              <span className="text-sm text-[#70858a]">
+                Showing page{" "}
+                <span className="font-semibold text-[#123d4a]">
+                  {pagination.currentPage}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-[#123d4a]">
+                  {pagination.totalPages}
+                </span>
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={!pagination.hasPrevPage}
+                  className="flex items-center gap-1 rounded-lg border border-[#dce9e6] bg-white px-3 py-1.5 text-sm font-medium text-[#536b72] transition hover:bg-[#eaf8f6] disabled:opacity-50"
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) =>
+                      Math.min(pagination.totalPages, p + 1),
+                    )
+                  }
+                  disabled={!pagination.hasNextPage}
+                  className="flex items-center gap-1 rounded-lg border border-[#dce9e6] bg-white px-3 py-1.5 text-sm font-medium text-[#536b72] transition hover:bg-[#eaf8f6] disabled:opacity-50"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* WEEKLY SCHEDULE POPUP */}
+      {selectedScheduleStore && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#123d4a]/40 p-4 backdrop-blur-sm"
+          onClick={() => setSelectedScheduleStore(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schedule-popup-title"
+            className="w-full max-w-md rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-2xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h3
+                  id="schedule-popup-title"
+                  className="text-lg font-bold text-[#123d4a]"
+                >
+                  Weekly Schedule
+                </h3>
+                <p className="mt-1 text-sm text-[#70858a]">
+                  {selectedScheduleStore.name}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedScheduleStore(null)}
+                aria-label="Close schedule"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[#70858a] transition hover:bg-[#eaf8f6]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {DAYS.map(({ key, label }) => {
+                const timing = selectedScheduleStore.weeklyTimings?.[key];
+
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-3 border-b border-[#edf2f1] pb-3 last:border-0"
+                  >
+                    <span className="text-sm font-semibold text-[#123d4a]">
+                      {label}
+                    </span>
+
+                    {timing?.isClosed ? (
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                        Closed
+                      </span>
+                    ) : timing?.openTime && timing?.closeTime ? (
+                      <span className="text-right text-sm font-medium text-[#536b72]">
+                        {timing.openTime} – {timing.closeTime}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#829397]">
+                        Not configured
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* THEMED CONFIRMATION MODAL */}
+      {storeToToggle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#123d4a]/40 backdrop-blur-sm p-3 sm:p-5">
+          <div className="w-full max-w-md rounded-2xl border border-[#e3edeb] bg-white p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-[#123d4a]">
+              Confirm {storeToToggle.isActive ? "Deactivation" : "Activation"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[#70858a]">
+              Are you sure you want to{" "}
+              {storeToToggle.isActive ? "deactivate" : "activate"}{" "}
+              <span className="font-semibold text-[#123d4a]">
+                "{storeToToggle.name}"
+              </span>
+              ?
+            </p>
+            <div className="mt-7 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStoreToToggle(null)}
+                disabled={updatingId === storeToToggle._id}
+                className="rounded-xl border border-[#dce9e6] bg-white px-5 py-2.5 text-sm font-semibold text-[#536b72] transition hover:bg-[#eaf8f6] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmToggle}
+                disabled={updatingId === storeToToggle._id}
+                className={`flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition shadow-sm disabled:opacity-60 ${
+                  storeToToggle.isActive
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-[#079d98] hover:bg-[#078b86]"
+                }`}
+              >
+                {updatingId === storeToToggle._id && (
+                  <LoaderCircle size={16} className="animate-spin" />
+                )}
+                {storeToToggle.isActive ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LIGHT EDIT MODAL */}
+      {storeToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#123d4a]/40 backdrop-blur-sm p-4">
+          <form
+            ref={editModalRef}
+            onSubmit={handleEditSubmit}
+            className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-2xl border border-[#dce9e6] bg-[#f4f9f8] p-4 shadow-2xl sm:p-6 lg:p-8"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-[#123d4a]">
+                  Edit Store Details
+                </h3>
+
+                <p className="mt-1 text-sm text-[#70858a]">
+                  Update the contact and location information below.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditModal}
+                aria-label="Close edit store modal"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-3xl cursor-pointer text-[#70858a] transition hover:bg-[#e8f3f1] hover:text-[#123d4a]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Main Store Image Preview */}
+            <div className="mt-5">
+              <label className="mb-2 block text-sm font-medium text-[#123d4a]">
+                Store Main Image
+              </label>
+
+              <div className="h-44 w-full overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]">
+                <ImageWithFallback
+                  src={
+                    mainImagePreview ||
+                    (storeToEdit.image?.path
+                      ? `${API_BASE_URL}${storeToEdit.image.path}`
+                      : null)
+                  }
+                  alt={`${storeToEdit.name} main image`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <input
+                ref={mainImageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleMainImageChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => mainImageInputRef.current?.click()}
+                className="mt-3 rounded-lg border border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
+              >
+                Change Main Image
+              </button>
+            </div>
+
+            {/* Additional Store Images Management */}
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-medium text-[#123d4a]">
+                  Additional Store Images
+                </label>
+
+                <span className="text-xs text-[#70858a]">
+                  {retainedAdditionalImages.length +
+                    newAdditionalImageFiles.length}
+                  /4 images
+                </span>
+              </div>
+
+              <input
+                ref={additionalImagesInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleAdditionalImagesChange}
+                className="hidden"
+              />
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {/* Existing images */}
+                {retainedAdditionalImages.map((imagePath, index) => (
+                  <div
+                    key={imagePath}
+                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
+                  >
+                    <ImageWithFallback
+                      src={`${API_BASE_URL}${imagePath}`}
+                      alt={`${storeToEdit.name} additional image ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRetainedAdditionalImages((prev) =>
+                          prev.filter((path) => path !== imagePath),
+                        )
+                      }
+                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                {/* Newly selected images */}
+                {newAdditionalImagePreviews.map((preview, index) => (
+                  <div
+                    key={preview}
+                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
+                  >
+                    <ImageWithFallback
+                      src={preview}
+                      alt={`New additional image ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewAdditionalImageFiles((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        );
+
+                        setNewAdditionalImagePreviews((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        );
+                      }}
+                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {retainedAdditionalImages.length +
+                newAdditionalImageFiles.length <
+                4 && (
+                <button
+                  type="button"
+                  onClick={() => additionalImagesInputRef.current?.click()}
+                  className="mt-3 rounded-lg border border-dashed border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
+                >
+                  + Add Images
+                </button>
+              )}
+
+              {retainedAdditionalImages.length +
+                newAdditionalImageFiles.length ===
+                0 && (
+                <p className="mt-2 text-xs text-[#829397]">
+                  No additional images selected.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {/* Store Details */}
+              <section className="mt-6 grid grid-cols-1 gap-6 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[240px_1fr] lg:gap-10">
+                {/* Section Information */}
+                <div className="flex items-center gap-4 border-b border-[#dce7e5] pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f8f5] text-[#079d98]">
+                    <Store size={26} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-xl font-bold text-[#123d4a]">
+                      Store Details
+                    </h2>
+                    <p className="mt-1 text-sm text-[#70858a]">
+                      Basic information about the store.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Form Fields */}
+                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+                  {/* Store Name */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#123d4a]">
+                      Store name *
+                    </label>
+
+                    <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                      <Store size={18} className="shrink-0 text-[#829397]" />
+
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, name: e.target.value })
+                        }
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        placeholder="Enter store name"
+                        className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contact Number */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#123d4a]">
+                      Contact number *
+                    </label>
+
+                    <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                      <Phone size={18} className="shrink-0 text-[#829397]" />
+
+                      <span className="border-r border-[#e5ebea] px-3 py-3 text-sm text-[#536b72]">
+                        +91
+                      </span>
+
+                      <input
+                        type="tel"
+                        value={editForm.contactNumber}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            contactNumber: e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 10),
+                          })
+                        }
+                        required
+                        pattern="[0-9]{10}"
+                        maxLength={10}
+                        inputMode="numeric"
+                        placeholder="10-digit phone number"
+                        className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Google Maps Link */}
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-[#123d4a]">
+                      Google Maps address link *
+                    </label>
+
+                    <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+                      <MapPin size={18} className="shrink-0 text-[#829397]" />
+
+                      <input
+                        type="url"
+                        value={editForm.addressLink}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            addressLink: e.target.value,
+                          })
+                        }
+                        required
+                        placeholder="Paste Google Maps link"
+                        className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Store Services + Weekly Schedule */}
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.85fr_1.5fr]">
+                {/* Store Services */}
+                <section className="rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-6">
+                  <div className="mb-7 flex items-start gap-3">
+                    <div className="rounded-xl bg-[#e8f8f5] p-3 text-[#079d98]">
+                      <Layers size={24} />
+                    </div>
+
+                    <div>
+                      <h2 className="text-lg font-bold text-[#123d4a]">
+                        Store Services
+                      </h2>
+                      <p className="text-sm text-[#70858a]">
+                        Select one or more services offered at this store.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      {
+                        name: "Phone Charging",
+                        description:
+                          "Customer can charge their phone at the store.",
+                        icon: Zap,
+                        color: "bg-[#d7faf1] text-[#00a991]",
+                      },
+                      {
+                        name: "Pick Me Later",
+                        description:
+                          "Customer can use the pick-up-later service.",
+                        icon: Package,
+                        color: "bg-[#eee7ff] text-[#8b5cf6]",
+                      },
+                    ].map((service) => {
+                      const ServiceIcon = service.icon;
+                      const selected = editServices.includes(service.name);
+
+                      return (
+                        <button
+                          key={service.name}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setEditServices((previous) =>
+                              selected
+                                ? previous.filter(
+                                    (item) => item !== service.name,
+                                  )
+                                : [...previous, service.name],
+                            )
+                          }
+                          className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition ${
+                            selected
+                              ? "border-[#079d98] bg-[#f0fbf9]"
+                              : "border-[#dce7e5] hover:border-[#079d98]"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${service.color}`}
+                          >
+                            <ServiceIcon size={25} />
+                          </span>
+
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-[#123d4a]">
+                              {service.name}
+                            </span>
+                            <span className="mt-1 block text-xs text-[#70858a]">
+                              {service.description}
+                            </span>
+                          </span>
+
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                              selected
+                                ? "border-[#079d98] bg-[#079d98] text-white"
+                                : "border-[#9aabb0] bg-white"
+                            }`}
+                          >
+                            {selected && <CheckCircle2 size={15} />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* Weekly Store Timings */}
+                <section className="min-w-0 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-6">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-xl bg-[#e8f8f5] p-3 text-[#079d98]">
+                        <CalendarDays size={24} />
+                      </div>
+
+                      <div>
+                        <h2 className="text-lg font-bold text-[#123d4a]">
+                          Store Timings (Weekly Schedule)
+                        </h2>
+                        <p className="text-sm text-[#70858a]">
+                          Set opening and closing time for each day.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={applyEditTimingToAllDays}
+                      className="flex items-center gap-2 rounded-lg border border-[#079d98] px-3 py-2 text-xs font-semibold text-[#087d7b] transition hover:bg-[#eaf8f6]"
+                    >
+                      <Copy size={15} />
+                      Apply to all days
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[650px]">
+                      <div className="grid grid-cols-[1fr_1.15fr_1.15fr_0.7fr] items-center gap-3 rounded-t-lg bg-[#f0f4f6] px-3 py-2 text-xs font-semibold text-[#536b72]">
+                        <span>Day</span>
+                        <span>Opening Time</span>
+                        <span>Closing Time</span>
+                        <span>Status</span>
+                      </div>
+
+                      {DAYS.map(({ key, label }) => {
+                        const timing = editWeeklyTimings[key];
+
+                        return (
+                          <div
+                            key={key}
+                            className="grid grid-cols-[1fr_1.15fr_1.15fr_0.7fr] items-center gap-3 border-b border-[#e8eeee] px-3 py-2"
+                          >
+                            <span className="text-sm font-semibold text-[#123d4a]">
+                              {label}
+                            </span>
+
+                            <input
+                              type="time"
+                              value={timing.openTime || ""}
+                              disabled={timing.isClosed}
+                              onChange={(e) =>
+                                updateEditDayTiming(
+                                  key,
+                                  "openTime",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full rounded-lg border border-[#cbd9df] bg-white px-2 py-2 text-xs text-[#123d4a] outline-none focus:border-[#079d98] disabled:bg-gray-100 disabled:opacity-50"
+                            />
+
+                            <input
+                              type="time"
+                              value={timing.closeTime || ""}
+                              disabled={timing.isClosed}
+                              onChange={(e) =>
+                                updateEditDayTiming(
+                                  key,
+                                  "closeTime",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full rounded-lg border border-[#cbd9df] bg-white px-2 py-2 text-xs text-[#123d4a] outline-none focus:border-[#079d98] disabled:bg-gray-100 disabled:opacity-50"
+                            />
+
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={!timing.isClosed}
+                              aria-label={`${label} ${timing.isClosed ? "closed" : "open"}`}
+                              onClick={() =>
+                                updateEditDayTiming(
+                                  key,
+                                  "isClosed",
+                                  !timing.isClosed,
+                                )
+                              }
+                              className="flex items-center gap-2"
+                            >
+                              <span
+                                className={`relative h-5 w-10 shrink-0 rounded-full transition ${
+                                  timing.isClosed
+                                    ? "bg-gray-300"
+                                    : "bg-[#079d98]"
+                                }`}
+                              >
+                                <span
+                                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+                                    timing.isClosed ? "left-0.5" : "left-[22px]"
+                                  }`}
+                                />
+                              </span>
+
+                              <span
+                                className={`text-xs font-medium ${
+                                  timing.isClosed
+                                    ? "text-gray-500"
+                                    : "text-[#079d98]"
+                                }`}
+                              >
+                                {timing.isClosed ? "Closed" : "Open"}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStoreToEdit(null)}
+                disabled={updatingId === storeToEdit._id}
+                className="rounded-xl border border-[#dce9e6] bg-white px-5 py-2.5 text-sm font-semibold text-[#536b72] transition hover:bg-[#eaf8f6]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updatingId === storeToEdit._id}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#079d98] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#078b86] disabled:opacity-60"
+              >
+                {updatingId === storeToEdit._id && (
+                  <LoaderCircle size={16} className="animate-spin" />
+                )}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </main>
+  );
+}
+</file>
+
+<file path="app/page.tsx">
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function HomePage() {
+    const router = useRouter();
+
+    useEffect(() => {
+        router.replace("/login");
+    }, [router]);
+
+    return null;
+}
+</file>
+
+<file path="app/dashboard/page.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+
+import {
+    Plus,
+    Store,
+    Activity,
+    PauseCircle,
+    LoaderCircle,
+    AlertCircle
+} from "lucide-react";
+
+import { getStoreStats, type StoreStats } from "@/services/storeService";
+
+export default function DashboardPageClient() {
+    const [stats, setStats] = useState<StoreStats | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                setLoading(true);
+                const data = await getStoreStats();
+                setStats(data);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to load stats");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    return (
+        <main className="min-h-screen bg-[#f4f9f8] text-[#123d4a]">
+            <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 sm:py-12">
+                
+                {/* Welcome section */}
+                <section className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#079d98]">
+                            Your workspace
+                        </p>
+                        <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#123d4a] sm:text-4xl">
+                            Welcome to NexoPod
+                        </h1>
+                        <p className="mt-3 text-sm text-[#70858a] sm:text-base">
+                            Manage your stores and keep everything organised.
+                        </p>
+                    </div>
+                </section>
+
+                {/* Stats section */}
+                <section className="mt-12 sm:mt-14">
+                    <div className="mb-6 flex flex-col justify-between gap-3 border-b border-[#dfebea] pb-5 sm:flex-row sm:items-center">
+                        <div>
+                            <h2 className="text-xl font-bold text-[#123d4a]">
+                                Overview
+                            </h2>
+                            <p className="mt-1 text-sm text-[#829397]">
+                                Quick statistics about your business.
+                            </p>
+                        </div>
+                    </div>
+
+                    {loading && (
+                        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-[#e3edeb] bg-white">
+                            <LoaderCircle size={28} className="animate-spin text-[#079d98]" />
+                        </div>
+                    )}
+
+                    {!loading && error && (
+                        <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-600">
+                            <AlertCircle size={28} className="mb-2" />
+                            <p className="text-sm font-medium">{error}</p>
+                        </div>
+                    )}
+
+                    {!loading && !error && stats && (
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                            {/* Total Stores Card */}
+                            <div className="rounded-2xl border border-[#e3edeb] bg-white p-6 shadow-sm">
+                                <div className="flex items-center gap-3 text-[#536b72]">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf8f6] text-[#079d98]">
+                                        <Store size={20} />
+                                    </div>
+                                    <h3 className="font-semibold">Total Stores</h3>
+                                </div>
+                                <p className="mt-4 text-3xl font-bold text-[#123d4a]">{stats.totalStores}</p>
+                            </div>
+
+                            {/* Active Stores Card */}
+                            <div className="rounded-2xl border border-[#e3edeb] bg-white p-6 shadow-sm">
+                                <div className="flex items-center gap-3 text-[#536b72]">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                                        <Activity size={20} />
+                                    </div>
+                                    <h3 className="font-semibold">Active Stores</h3>
+                                </div>
+                                <p className="mt-4 text-3xl font-bold text-[#123d4a]">{stats.activeStores}</p>
+                            </div>
+
+                            {/* Inactive Stores Card */}
+                            <div className="rounded-2xl border border-[#e3edeb] bg-white p-6 shadow-sm">
+                                <div className="flex items-center gap-3 text-[#536b72]">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500">
+                                        <PauseCircle size={20} />
+                                    </div>
+                                    <h3 className="font-semibold">Inactive Stores</h3>
+                                </div>
+                                <p className="mt-4 text-3xl font-bold text-[#123d4a]">{stats.inactiveStores}</p>
+                            </div>
+                        </div>
+                    )}
+                </section>
+
+                {/* Footer */}
+                <footer className="mt-16 flex flex-col items-center justify-between gap-2 border-t border-[#dfebea] py-6 text-xs text-[#829397] sm:flex-row">
+                    <span className="font-semibold text-[#087d7b]">
+                        NexoPod
+                    </span>
+                    <span>Manage your business in one place.</span>
+                </footer>
+            </div>
+        </main>
+    );
+}
+</file>
+
+<file path="services/storeService.ts">
+import API_BASE_URL from "./api";
+import { useAuthStore } from "@/stores/authStore";
+
+const handleUnauthorized = () => {
+    useAuthStore.getState().clearSession();
+
+    if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+    ) {
+        window.location.replace("/login");
+    }
+};
+
+export interface CreateStoreData {
+    name: string;
+    addressLink: string;
+    contactNumber: string;
+    timings: string;
+    services: string[];
+    weeklyTimings: Record<string, {
+        isClosed: boolean;
+        openTime: string;
+        closeTime: string;
+    }>;
+    image: File;
+    images: File[];
+}
+
+interface CreateStoreResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        _id: string;
+        name: string;
+        addressLink: string;
+        contactNumber: string;
+        timings: string;
+        isActive: boolean;
+        image: { type: "upload"; path: string; };
+        images: { type: "upload"; path: string; }[];
+        createdAt: string;
+    };
+}
+
+export const createStore = async (storeData: CreateStoreData): Promise<CreateStoreResponse> => {
+    const token = sessionStorage.getItem("nexopodToken");
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const formData = new FormData();
+    formData.append("name", storeData.name.trim());
+    formData.append("addressLink", storeData.addressLink.trim());
+    formData.append("contactNumber", storeData.contactNumber);
+    formData.append("timings", storeData.timings.trim());
+formData.append("services", JSON.stringify(storeData.services));
+formData.append("weeklyTimings", JSON.stringify(storeData.weeklyTimings));
+formData.append("image", storeData.image);
+
+    storeData.images.forEach((file) => {
+        formData.append("images", file);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/api/stores/create-store`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+
+    const result: CreateStoreResponse = await response.json();
+
+    if (!response.ok) {
+         handleUnauthorized();
+        if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
+        throw new Error(result.message || "Failed to create store.");
+    }
+    return result;
+};
+
+
+export interface StoreDayTiming {
+    isClosed: boolean;
+    openTime?: string;
+    closeTime?: string;
+}
+
+
+export interface StoreItem {
+    _id: string;
+    name: string;
+    addressLink: string;
+    contactNumber: string;
+    timings: string;
+    services?: string[];
+weeklyTimings?: Record<string, StoreDayTiming>;
+    isActive: boolean;
+    image: { type: "upload"; path: string; };
+    images: { type: "upload"; path: string; }[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PaginationData {
+    totalStores: number;
+    totalPages: number;
+    currentPage: number;
+    limit: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+}
+
+interface GetStoresResponse {
+    success: boolean;
+    count: number;
+    pagination: PaginationData;
+    data: StoreItem[];
+}
+
+export interface GetStoresParams {
+    search?: string;
+    status?: "all" | "active" | "inactive";
+    page?: number;
+    limit?: number;
+}
+
+export const getStores = async (params: GetStoresParams = {}): Promise<GetStoresResponse> => {
+    const token = sessionStorage.getItem("nexopodToken");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append("search", params.search);
+    if (params.status) queryParams.append("status", params.status);
+    if (params.page) queryParams.append("page", String(params.page));
+    if (params.limit) queryParams.append("limit", String(params.limit));
+
+    const queryString = queryParams.toString();
+    const url = `${API_BASE_URL}/api/stores/get-all-stores${queryString ? `?${queryString}` : ""}`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+
+    const result: GetStoresResponse = await response.json();
+
+    if (!response.ok) {
+        handleUnauthorized();
+        if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
+        throw new Error("Unable to fetch stores.");
+    }
+    return result;
+};
+
+export interface StoreStats {
+    totalStores: number;
+    activeStores: number;
+    inactiveStores: number;
+}
+
+export const getStoreStats = async (): Promise<StoreStats> => {
+    const token = sessionStorage.getItem("nexopodToken");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/stores/get-store-stats`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        handleUnauthorized();
+        if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
+        throw new Error("Unable to fetch store statistics.");
+    }
+    return result.data;
+};
+
+export const updateStoreStatus = async (
+    storeId: string,
+    isActive: boolean
+): Promise<{ success: boolean; message: string; data: StoreItem }> => {
+    const token = sessionStorage.getItem("nexopodToken");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/stores/update-store-status/${storeId}`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        handleUnauthorized();
+        if (response.status === 401) throw new Error("Your session has expired. Please log in again.");
+        throw new Error(result.message || "Failed to update store status.");
+    }
+    return result;
+};
+
+
+export interface UpdateStoreDetailsData {
+    name: string;
+    addressLink: string;
+    contactNumber: string;
+    timings: string;
+    services: string[];
+    weeklyTimings: Record<string, unknown>;
+    existingImages: string[];
+    image?: File | null;
+    images: File[];
+}
+
+export const updateStoreDetails = async (
+    storeId: string,
+    details: UpdateStoreDetailsData
+): Promise<{ success: boolean; message: string; data: StoreItem }> => {
+    const token = sessionStorage.getItem("nexopodToken");
+
+    if (!token) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const formData = new FormData();
+
+    // Basic store details
+    formData.append("name", details.name.trim());
+    formData.append("addressLink", details.addressLink.trim());
+    formData.append("contactNumber", details.contactNumber);
+    formData.append("timings", details.timings.trim());
+
+    // Store services and weekly schedule
+    formData.append("services", JSON.stringify(details.services));
+    formData.append("weeklyTimings", JSON.stringify(details.weeklyTimings));
+
+    // Existing additional images selected to be retained
+    formData.append("existingImages", JSON.stringify(details.existingImages));
+
+    // New main image (optional)
+    if (details.image) {
+        formData.append("image", details.image);
+    }
+
+    // New additional images
+    details.images.forEach((file) => {
+        formData.append("images", file);
+    });
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/stores/update-store/${storeId}`,
+        {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            handleUnauthorized();
+            throw new Error("Your session has expired. Please log in again.");
+        }
+
+        throw new Error(result.message || "Failed to update store details.");
+    }
+
+    return result;
+};
+</file>
+
+</files>

@@ -36,6 +36,7 @@ import {
 import API_BASE_URL from "@/services/api";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import useClickOutside from "@/hooks/useClickOutside";
+import Toast, { type ToastType } from "@/components/Toast";
 
 type DayKey =
   | "monday"
@@ -73,6 +74,12 @@ export default function StoresPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [toast, setToast] = useState<{
+    type: ToastType;
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Filters & Pagination State
   const [searchInput, setSearchInput] = useState("");
@@ -371,6 +378,52 @@ export default function StoresPage() {
     e.preventDefault();
     if (!storeToEdit) return;
 
+    // 1. Store name
+    if (editForm.name.trim().length < 2) {
+      setToast({
+        type: "warning",
+        title: "Store name required",
+        message: "Please enter a store name with at least 2 characters.",
+      });
+      return;
+    }
+
+    // 2. Contact number
+    if (!/^\d{10}$/.test(editForm.contactNumber)) {
+      setToast({
+        type: "warning",
+        title: "Contact number required",
+        message: "Please enter a valid 10-digit phone number.",
+      });
+      return;
+    }
+
+    // 3. Google Maps link
+    try {
+      const parsedUrl = new URL(editForm.addressLink.trim());
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        throw new Error("Invalid URL");
+      }
+    } catch {
+      setToast({
+        type: "warning",
+        title: "Invalid store location",
+        message: "Please enter a valid Google Maps link.",
+      });
+      return;
+    }
+
+    // 4. Store services
+    if (editServices.length === 0) {
+      setToast({
+        type: "warning",
+        title: "Choose a service",
+        message: "Please select at least one service for this store.",
+      });
+      return;
+    }
+
     try {
       setUpdatingId(storeToEdit._id);
 
@@ -412,10 +465,20 @@ export default function StoresPage() {
           s._id === storeToEdit._id ? { ...s, ...updated.data } : s,
         ),
       );
-
+      setToast({
+        type: "success",
+        title: "Store Updated",
+        message: "Store details have been updated successfully.",
+      });
       setStoreToEdit(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update store");
+      console.error("Store update failed:", err);
+
+      setToast({
+        type: "error",
+        title: "Update Failed",
+        message: "We couldn't update the store. Please try again.",
+      });
     } finally {
       setUpdatingId(null);
     }
@@ -423,6 +486,14 @@ export default function StoresPage() {
 
   return (
     <main className="min-h-screen bg-[#f4f9f8] px-4 py-8 sm:px-6 relative">
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="mx-auto w-full max-w-7xl">
         {/* Header layout matching reference image */}
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -936,144 +1007,6 @@ export default function StoresPage() {
               </button>
             </div>
 
-            {/* Main Store Image Preview */}
-            <div className="mt-5">
-              <label className="mb-2 block text-sm font-medium text-[#123d4a]">
-                Store Main Image
-              </label>
-
-              <div className="h-44 w-full overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]">
-                <ImageWithFallback
-                  src={
-                    mainImagePreview ||
-                    (storeToEdit.image?.path
-                      ? `${API_BASE_URL}${storeToEdit.image.path}`
-                      : null)
-                  }
-                  alt={`${storeToEdit.name} main image`}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-
-              <input
-                ref={mainImageInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleMainImageChange}
-                className="hidden"
-              />
-
-              <button
-                type="button"
-                onClick={() => mainImageInputRef.current?.click()}
-                className="mt-3 rounded-lg border border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
-              >
-                Change Main Image
-              </button>
-            </div>
-
-            {/* Additional Store Images Management */}
-            <div className="mt-5">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="block text-sm font-medium text-[#123d4a]">
-                  Additional Store Images
-                </label>
-
-                <span className="text-xs text-[#70858a]">
-                  {retainedAdditionalImages.length +
-                    newAdditionalImageFiles.length}
-                  /4 images
-                </span>
-              </div>
-
-              <input
-                ref={additionalImagesInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                onChange={handleAdditionalImagesChange}
-                className="hidden"
-              />
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {/* Existing images */}
-                {retainedAdditionalImages.map((imagePath, index) => (
-                  <div
-                    key={imagePath}
-                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
-                  >
-                    <ImageWithFallback
-                      src={`${API_BASE_URL}${imagePath}`}
-                      alt={`${storeToEdit.name} additional image ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRetainedAdditionalImages((prev) =>
-                          prev.filter((path) => path !== imagePath),
-                        )
-                      }
-                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-
-                {/* Newly selected images */}
-                {newAdditionalImagePreviews.map((preview, index) => (
-                  <div
-                    key={preview}
-                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
-                  >
-                    <ImageWithFallback
-                      src={preview}
-                      alt={`New additional image ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewAdditionalImageFiles((prev) =>
-                          prev.filter((_, i) => i !== index),
-                        );
-
-                        setNewAdditionalImagePreviews((prev) =>
-                          prev.filter((_, i) => i !== index),
-                        );
-                      }}
-                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {retainedAdditionalImages.length +
-                newAdditionalImageFiles.length <
-                4 && (
-                <button
-                  type="button"
-                  onClick={() => additionalImagesInputRef.current?.click()}
-                  className="mt-3 rounded-lg border border-dashed border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
-                >
-                  + Add Images
-                </button>
-              )}
-
-              {retainedAdditionalImages.length +
-                newAdditionalImageFiles.length ===
-                0 && (
-                <p className="mt-2 text-xs text-[#829397]">
-                  No additional images selected.
-                </p>
-              )}
-            </div>
-
             <div className="mt-6 space-y-4">
               {/* Store Details */}
               <section className="mt-6 grid grid-cols-1 gap-6 rounded-2xl border border-[#dce9e6] bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[240px_1fr] lg:gap-10">
@@ -1391,6 +1324,144 @@ export default function StoresPage() {
                   </div>
                 </section>
               </div>
+            </div>
+
+            {/* Main Store Image Preview */}
+            <div className="mt-5">
+              <label className="mb-2 block text-sm font-medium text-[#123d4a]">
+                Store Main Image
+              </label>
+
+              <div className="h-44 w-full overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]">
+                <ImageWithFallback
+                  src={
+                    mainImagePreview ||
+                    (storeToEdit.image?.path
+                      ? `${API_BASE_URL}${storeToEdit.image.path}`
+                      : null)
+                  }
+                  alt={`${storeToEdit.name} main image`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <input
+                ref={mainImageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleMainImageChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => mainImageInputRef.current?.click()}
+                className="mt-3 rounded-lg border border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
+              >
+                Change Main Image
+              </button>
+            </div>
+
+            {/* Additional Store Images Management */}
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-medium text-[#123d4a]">
+                  Additional Store Images
+                </label>
+
+                <span className="text-xs text-[#70858a]">
+                  {retainedAdditionalImages.length +
+                    newAdditionalImageFiles.length}
+                  /4 images
+                </span>
+              </div>
+
+              <input
+                ref={additionalImagesInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleAdditionalImagesChange}
+                className="hidden"
+              />
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {/* Existing images */}
+                {retainedAdditionalImages.map((imagePath, index) => (
+                  <div
+                    key={imagePath}
+                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
+                  >
+                    <ImageWithFallback
+                      src={`${API_BASE_URL}${imagePath}`}
+                      alt={`${storeToEdit.name} additional image ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRetainedAdditionalImages((prev) =>
+                          prev.filter((path) => path !== imagePath),
+                        )
+                      }
+                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                {/* Newly selected images */}
+                {newAdditionalImagePreviews.map((preview, index) => (
+                  <div
+                    key={preview}
+                    className="relative h-24 overflow-hidden rounded-xl border border-[#dce9e6] bg-[#f4f9f8]"
+                  >
+                    <ImageWithFallback
+                      src={preview}
+                      alt={`New additional image ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewAdditionalImageFiles((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        );
+
+                        setNewAdditionalImagePreviews((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        );
+                      }}
+                      className="absolute right-1 top-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {retainedAdditionalImages.length +
+                newAdditionalImageFiles.length <
+                4 && (
+                <button
+                  type="button"
+                  onClick={() => additionalImagesInputRef.current?.click()}
+                  className="mt-3 rounded-lg border border-dashed border-[#079d98] px-4 py-2 text-sm font-semibold text-[#079d98] transition hover:bg-[#eaf8f6]"
+                >
+                  + Add Images
+                </button>
+              )}
+
+              {retainedAdditionalImages.length +
+                newAdditionalImageFiles.length ===
+                0 && (
+                <p className="mt-2 text-xs text-[#829397]">
+                  No additional images selected.
+                </p>
+              )}
             </div>
 
             <div className="mt-8 flex justify-end gap-3">

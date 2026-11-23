@@ -389,15 +389,6 @@ export default function AddStorePage() {
         />
       )}
       <div className="mx-auto max-w-7xl">
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="mb-7 flex items-center gap-2 text-sm font-medium text-[#536b72] hover:text-[#079d98]"
-        >
-          <ArrowLeft size={18} />
-          Back to dashboard
-        </button>
-
         <div className="mb-8">
           <div className="flex items-center gap-2 text-[#079d98]">
             <Store size={19} />

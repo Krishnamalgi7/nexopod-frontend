@@ -1,4 +1,3 @@
-         
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +15,7 @@ import {
   Clock3,
   CheckCircle2,
   XCircle,
+  ArrowLeft,
 } from "lucide-react";
 
 import {
@@ -42,15 +42,13 @@ const PAGE_SIZE = 10;
 export default function StoreRequestsPage() {
   const router = useRouter();
 
-  const [activeStatus, setActiveStatus] =
-    useState<RequestStatus>("all");
+  const [activeStatus, setActiveStatus] = useState<RequestStatus>("all");
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const [data, setData] =
-    useState<StoreProfileReviewListResponse | null>(null);
+  const [data, setData] = useState<StoreProfileReviewListResponse | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -81,7 +79,7 @@ export default function StoreRequestsPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to load store-profile requests."
+          : "Unable to load store-profile requests.",
       );
     } finally {
       setLoading(false);
@@ -107,9 +105,7 @@ export default function StoreRequestsPage() {
     });
   };
 
-  const getRequestedChanges = (
-    request: StoreProfileReviewRequest
-  ) => {
+  const getRequestedChanges = (request: StoreProfileReviewRequest) => {
     const proposed = request.proposedProfile;
     const changes: string[] = [];
 
@@ -133,19 +129,23 @@ export default function StoreRequestsPage() {
   return (
     <main className="min-h-screen bg-[#f5f9f8] px-4 py-8 text-[#123d4a] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="mb-7 flex items-center gap-2 text-sm font-medium text-[#536b72] hover:text-[#079d98]"
+        >
+          <ArrowLeft size={18} />
+          Back to dashboard
+        </button>
 
         {/* Heading */}
         <div className="mb-7">
           <div className="mb-2 flex items-center gap-2 text-[#079d98]">
             <ClipboardList size={20} />
-            <span className="text-sm font-semibold">
-              Store Management
-            </span>
+            <span className="text-sm font-semibold">Store Management</span>
           </div>
 
-          <h1 className="text-2xl font-bold sm:text-3xl">
-            Review Requests
-          </h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Review Requests</h1>
 
           <p className="mt-2 text-sm text-[#829397]">
             Manage store update requests submitted by shop owners.
@@ -154,7 +154,6 @@ export default function StoreRequestsPage() {
 
         {/* Filters and Search */}
         <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-
           <div className="flex flex-wrap gap-2">
             {STATUS_TABS.map((tab) => {
               const Icon = tab.icon;
@@ -207,7 +206,6 @@ export default function StoreRequestsPage() {
 
         {/* Request Table */}
         <section className="overflow-hidden rounded-2xl border border-[#e3edeb] bg-white shadow-sm">
-
           <div className="overflow-x-auto">
             <table className="w-full min-w-[850px] text-left">
               <thead className="bg-[#f0f6f5]">
@@ -236,13 +234,8 @@ export default function StoreRequestsPage() {
                 ) : error ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-14 text-center">
-                      <AlertCircle
-                        size={28}
-                        className="mx-auto text-red-500"
-                      />
-                      <p className="mt-3 text-sm text-red-600">
-                        {error}
-                      </p>
+                      <AlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-3 text-sm text-red-600">{error}</p>
                       <button
                         type="button"
                         onClick={loadRequests}
@@ -254,8 +247,7 @@ export default function StoreRequestsPage() {
                   </tr>
                 ) : data?.requests.length ? (
                   data.requests.map((request) => {
-                    const storeName =
-                      request.storeId?.name || "Unknown Store";
+                    const storeName = request.storeId?.name || "Unknown Store";
 
                     return (
                       <tr
@@ -304,7 +296,7 @@ export default function StoreRequestsPage() {
                             type="button"
                             onClick={() =>
                               router.push(
-                                `/dashboard/stores/review/${request._id}`
+                                `/dashboard/stores/review/${request._id}`,
                               )
                             }
                             className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold transition ${
@@ -347,16 +339,16 @@ export default function StoreRequestsPage() {
                 Showing{" "}
                 <span className="font-semibold text-[#536b72]">
                   {(data.page - 1) * data.limit + 1}
-                </span>
-                {" "}to{" "}
+                </span>{" "}
+                to{" "}
                 <span className="font-semibold text-[#536b72]">
                   {Math.min(data.page * data.limit, data.total)}
-                </span>
-                {" "}of{" "}
+                </span>{" "}
+                of{" "}
                 <span className="font-semibold text-[#536b72]">
                   {data.total}
-                </span>
-                {" "}requests
+                </span>{" "}
+                requests
               </p>
 
               <div className="flex items-center gap-2">

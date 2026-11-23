@@ -22,6 +22,7 @@ import {
   Layers,
   CheckCircle2,
   SlidersHorizontal,
+  ArrowLeft,
 } from "lucide-react";
 
 import {
@@ -494,6 +495,7 @@ export default function StoresPage() {
           onClose={() => setToast(null)}
         />
       )}
+
       <div className="mx-auto w-full max-w-7xl">
         {/* Header layout matching reference image */}
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

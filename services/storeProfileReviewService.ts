@@ -2,40 +2,58 @@
 import API_BASE_URL from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
+export interface StoreDayTiming {
+  isClosed: boolean;
+  openTime?: string;
+  closeTime?: string;
+}
+
+export interface StoreWeeklyTimings {
+  monday?: StoreDayTiming;
+  tuesday?: StoreDayTiming;
+  wednesday?: StoreDayTiming;
+  thursday?: StoreDayTiming;
+  friday?: StoreDayTiming;
+  saturday?: StoreDayTiming;
+  sunday?: StoreDayTiming;
+}
+
+export interface StoreProfileImage {
+  type: string;
+  path: string;
+}
+
 export interface StoreProfileReviewRequest {
   _id: string;
+
   storeId: {
     _id: string;
     name: string;
     contactNumber: string;
     addressLink: string;
-    image?: {
-      type: string;
-      path: string;
-    };
-    images?: {
-      type: string;
-      path: string;
-    }[];
+    timings: string;
+    services: string[];
+    weeklyTimings?: StoreWeeklyTimings;
+    image?: StoreProfileImage;
+    images?: StoreProfileImage[];
     isActive: boolean;
   } | null;
+
   status: "pending" | "approved" | "rejected";
+
   proposedProfile: {
     name?: string;
     contactNumber?: string;
     addressLink?: string;
     timings?: string;
     services?: string[];
-    weeklyTimings?: Record<string, unknown>;
-    image?: {
-      type: string;
-      path: string;
-    };
-    images?: {
-      type: string;
-      path: string;
-    }[];
+    isActive?: boolean;
+    weeklyTimings?: StoreWeeklyTimings;
+    image?: StoreProfileImage;
+    images?: StoreProfileImage[];
   };
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
   createdAt: string;
 }
 

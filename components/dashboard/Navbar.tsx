@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   LogOut,
   Bell,
+  ClipboardList,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -146,6 +147,7 @@ export default function Navbar() {
 
   const isAddStoreActive = pathname === "/dashboard/add-store";
   const isStoresActive = pathname === "/dashboard/stores";
+    const isStoreRequestsActive = pathname.startsWith("/dashboard/store-requests");
 
   return (
     <header className="relative z-10 w-full px-4 pt-4">
@@ -197,6 +199,18 @@ export default function Navbar() {
           >
             <MapPinned size={17} />
             <span>Stores</span>
+          </Link>
+
+                    <Link
+            href="/dashboard/store-requests"
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-sm font-medium transition ${
+              isStoreRequestsActive
+                ? "bg-[#079d98] text-white"
+                : "text-[#536b72] hover:bg-[#eaf7f5] hover:text-[#087d7b]"
+            }`}
+          >
+            <ClipboardList size={17} />
+            <span>Review Requests</span>
           </Link>
 
           <button

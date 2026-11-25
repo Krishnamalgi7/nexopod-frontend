@@ -34,7 +34,9 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
                   Nexo<span className="text-[#00BFA5]">Pod</span>
                 </h1>
               </Link>
-              <p className="mt-3 text-base text-[#64748B] sm:text-lg">Welcome! Access manage your stores</p>
+              <p className="mt-3 text-base text-[#64748B] sm:text-lg">
+                Welcome! Access manage your stores
+              </p>
             </div>
 
             <div className="rounded-[28px] border border-[#DCEFE8] bg-white p-6 shadow-[0_12px_40px_rgba(20,45,70,0.08)] sm:p-8">

@@ -1,5 +1,6 @@
 
 "use client";
+import Image from "next/image";
 import { useShopOwnerAuthStore } from "@/stores/shopowner/authStore";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -109,35 +110,56 @@ const setToken = useShopOwnerAuthStore((state) => state.setToken);
     }
   };
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F0FFFA] px-4 py-8 sm:px-6">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-[38px] font-extrabold tracking-tight text-[#142D46]">
+  
+return (
+  <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#DDFBF5] via-[#F8FFFD] to-[#D5F8F1]">
+    {/* Decorative background */}
+    <div className="pointer-events-none absolute -left-32 -top-40 h-[420px] w-[650px] -rotate-12 rounded-[50%] border-[35px] border-[#8DEDE0]/40" />
+    <div className="pointer-events-none absolute -bottom-64 -right-32 h-[450px] w-[700px] rotate-[-15deg] rounded-[50%] border-[45px] border-[#8DEDE0]/30" />
+
+    <div className="relative z-10 mx-auto grid min-h-screen max-w-[1600px] grid-cols-1 items-center gap-8 px-5 py-10 lg:grid-cols-2 lg:gap-12 lg:px-12">
+      {/* Left illustration */}
+      <section className="flex items-center justify-center">
+        <div className="w-full max-w-[560px]">
+          <Image
+            src="/nexopod-store-hero.png"
+            alt="NexoPod shop illustration"
+            width={1200}
+            height={1200}
+            priority
+            className="mx-auto h-auto max-h-[300px] w-full object-contain sm:max-h-[420px] lg:max-h-[620px]"
+          />
+        </div>
+      </section>
+
+      {/* Right login section */}
+      <section className="mx-auto w-full max-w-[650px]">
+        <div className="mb-9 text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#142D46] sm:text-5xl">
             Nexo<span className="text-[#00BFA5]">Pod</span>
           </h1>
 
-          <h2 className="mt-5 text-2xl font-bold text-[#142D46]">
+          <h2 className="mt-7 text-2xl font-extrabold text-[#142D46] sm:text-3xl">
             Shop Owner Login
           </h2>
 
-          <p className="mt-2 text-sm text-[#7B8798]">
+          <p className="mt-3 text-base text-[#64748B] sm:text-lg">
             Welcome back! Sign in to manage your store.
           </p>
         </div>
 
-        <div className="rounded-[28px] border border-[#DCEFE8] bg-white p-6 shadow-[0_12px_40px_rgba(20,45,70,0.08)] sm:p-8">
+        <div className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_55px_rgba(20,75,80,0.10)] backdrop-blur-sm sm:p-10">
           <form onSubmit={handleSubmit}>
-            <label className="mb-2 block text-sm font-semibold text-[#244B5A]">
+            <label className="mb-3 block text-lg font-semibold text-[#142D46]">
               Mobile Number
             </label>
 
-            <div className="mb-6 flex h-[58px] items-center rounded-2xl border border-[#DCE9E5] bg-[#FBFFFD] px-4 transition focus-within:border-[#00BFA5] focus-within:ring-2 focus-within:ring-[#00BFA5]/10">
-              <Smartphone size={21} className="shrink-0 text-[#00BFA5]" />
+            <div className="mb-7 flex h-[72px] items-center rounded-2xl border border-[#DCE5EC] bg-white px-5 transition focus-within:border-[#00BFA5] focus-within:ring-2 focus-within:ring-[#00BFA5]/10">
+              <Smartphone size={24} className="shrink-0 text-[#00BFA5]" />
 
-              <span className="ml-3 font-bold text-[#142D46]">+91</span>
+              <span className="ml-5 font-bold text-[#142D46]">+91</span>
 
-              <div className="mx-3 h-8 w-px bg-[#DCE9E5]" />
+              <div className="mx-5 h-9 w-px bg-[#DCE5EC]" />
 
               <input
                 type="tel"
@@ -161,12 +183,12 @@ const setToken = useShopOwnerAuthStore((state) => state.setToken);
 
             {otpRequested && (
               <>
-                <label className="mb-2 block text-sm font-semibold text-[#244B5A]">
+                <label className="mb-3 block text-lg font-semibold text-[#142D46]">
                   One-Time Password
                 </label>
 
-                <div className="mb-3 flex h-[58px] items-center rounded-2xl border border-[#DCE9E5] bg-[#FBFFFD] px-4 transition focus-within:border-[#00BFA5] focus-within:ring-2 focus-within:ring-[#00BFA5]/10">
-                  <LockKeyhole size={21} className="shrink-0 text-[#00BFA5]" />
+                <div className="mb-3 flex h-[72px] items-center rounded-2xl border border-[#DCE5EC] bg-white px-5 transition focus-within:border-[#00BFA5] focus-within:ring-2 focus-within:ring-[#00BFA5]/10">
+                  <LockKeyhole size={23} className="shrink-0 text-[#00BFA5]" />
 
                   <input
                     type="text"
@@ -180,11 +202,11 @@ const setToken = useShopOwnerAuthStore((state) => state.setToken);
                     }
                     placeholder="Enter 4-digit OTP"
                     maxLength={4}
-                    className="ml-3 w-full bg-transparent text-base tracking-[5px] text-[#142D46] outline-none placeholder:tracking-normal placeholder:text-[#9AA9B8]"
+                    className="ml-4 w-full bg-transparent text-base tracking-[5px] text-[#142D46] outline-none placeholder:tracking-normal placeholder:text-[#9AA9B8]"
                   />
                 </div>
 
-                <div className="mb-6 flex items-center justify-between gap-2">
+                <div className="mb-7 flex items-center justify-between gap-2">
                   {secondsRemaining > 0 ? (
                     <p className="text-sm text-[#64748B]">
                       OTP expires in{" "}
@@ -215,36 +237,36 @@ const setToken = useShopOwnerAuthStore((state) => state.setToken);
             <button
               type="submit"
               disabled={loading || (otpRequested && secondsRemaining <= 0)}
-              className="flex h-[58px] w-full items-center justify-center gap-2 rounded-2xl bg-[#00BFA5] text-lg font-bold tracking-wide text-white shadow-md transition hover:bg-[#00A98F] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-[76px] w-full items-center justify-center gap-4 rounded-2xl bg-gradient-to-r from-[#00BFA5] to-[#00AA91] text-lg font-bold text-white shadow-lg shadow-[#00BFA5]/20 transition hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <>
-                  <LoaderCircle size={20} className="animate-spin" />
+                  <LoaderCircle size={22} className="animate-spin" />
                   {otpRequested ? "Verifying..." : "Sending OTP..."}
                 </>
               ) : (
                 <>
                   {otpRequested ? "Verify & Login" : "Send OTP"}
-                  <ArrowRight size={19} />
+                  <ArrowRight size={22} />
                 </>
               )}
             </button>
 
             {error && (
-              <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600">
+              <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-600">
                 {error}
               </p>
             )}
           </form>
         </div>
 
-        <div className="mt-7 flex items-center justify-center gap-2">
-          <ShieldCheck size={19} className="text-[#00A985]" />
-          <p className="text-sm font-medium text-[#718096]">
+        <div className="mt-9 flex items-center justify-center gap-3">
+          <ShieldCheck size={24} className="text-[#00BFA5]" />
+          <p className="text-base font-medium text-[#52647D]">
             Secure Shop Owner Access
           </p>
         </div>
-      </div>
-    </main>
-  );
-}
+      </section>
+    </div>
+  </main>
+);}

@@ -1,8 +1,6 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { getRegistrationStatus } from "@/services/superadmin/authService";
+import { Crown } from "lucide-react";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -10,83 +8,41 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children, mode }: AuthLayoutProps) {
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-
-  useEffect(() => {
-    const checkRegistration = async () => {
-      try {
-        const result = await getRegistrationStatus();
-        setRegistrationOpen(result.data.registrationOpen);
-      } catch (error) {
-        console.error("Failed to check registration status:", error);
-        setRegistrationOpen(false);
-      }
-    };
-
-    checkRegistration();
-  }, []);
-
   return (
-    <main
-      className="flex min-h-screen items-center justify-end overflow-hidden bg-[#f7ffff] bg-no-repeat px-4 py-6 sm:px-8 lg:px-12"
-      style={{
-        backgroundImage: "url('/nexopod-auth-brand.png')",
-        backgroundSize: "100% auto",
-        backgroundPosition: "50% center",
-        backgroundRepeat: "no-repeat",
-        backgroundColor: "#f7ffff",
-      }}
-    >
-      <Link
-  href="/shopowner/login"
-  className="absolute right-6 top-6 z-10 rounded-xl bg-[#00BFA5] px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#00a990] sm:right-8 sm:top-8 lg:right-12"
->
-  Login as Shop Owner
-</Link>
+    <main className="min-h-screen bg-[#F0FFFA] px-4 py-8 sm:px-6">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-[1500px] grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+        {/* Left illustration */}
+        <section className="flex items-center justify-center">
+          <div className="relative w-full max-w-[430px]">
+            <Image
+              src="/admin-auth.png"
+              alt="NexoPod Super Admin Portal"
+              width={1240}
+              height={1240}
+              priority
+              className="h-auto w-full object-contain"
+            />
+          </div>
+        </section>
 
-      {/* Authentication panel overlays the empty right side */}
-      <section className="w-full max-w-[490px] rounded-[26px] border border-white/80 bg-white/95 px-6 py-8 shadow-[0_15px_50px_rgba(12,75,80,0.10)] backdrop-blur-sm sm:px-10 sm:py-10 lg:mr-[3%] lg:px-12">
-        {/* Mobile brand */}
-        <Link
-          href="/"
-          className="mb-7 flex items-center justify-center gap-2 lg:hidden"
-        >
-          <span className="text-xl font-bold text-[#123d4a]">NexoPod</span>
-        </Link>
+        {/* Right authentication area */}
+        <section className="flex items-center justify-center">
+          <div className="w-full max-w-[520px]">
+            <div className="mb-7 flex flex-col items-center text-center">
+              <Link href="/" className="inline-block">
+                <h1 className="text-[38px] font-extrabold tracking-tight text-[#142D46]">
+                  Nexo<span className="text-[#00BFA5]">Pod</span>
+                </h1>
+              </Link>
+              <p className="mt-3 text-base text-[#64748B] sm:text-lg">Welcome! Access manage your stores</p>
+            </div>
 
-        {/* Authentication tabs */}
-        <div
-          className={`mb-8 grid border-b border-[#e1e9e9] ${
-            registrationOpen ? "grid-cols-2" : "grid-cols-1"
-          }`}
-        >
-          <Link
-            href="/superadmin/login"
-            className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
-              mode === "login"
-                ? "border-[#079d98] text-[#087d7b]"
-                : "border-transparent text-[#718087] hover:text-[#123d4a]"
-            }`}
-          >
-            Login
-          </Link>
-
-          {registrationOpen && (
-            <Link
-              href="/auperadmin/signup"
-              className={`border-b-[3px] py-3 text-center text-sm font-semibold transition ${
-                mode === "signup"
-                  ? "border-[#079d98] text-[#087d7b]"
-                  : "border-transparent text-[#718087] hover:text-[#123d4a]"
-              }`}
-            >
-              Register
-            </Link>
-          )}
-        </div>
-
-        {children}
-      </section>
+            <div className="rounded-[28px] border border-[#DCEFE8] bg-white p-6 shadow-[0_12px_40px_rgba(20,45,70,0.08)] sm:p-8">
+              {children}
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

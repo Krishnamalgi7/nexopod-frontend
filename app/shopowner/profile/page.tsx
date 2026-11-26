@@ -1,15 +1,17 @@
 "use client";
-
+import { jsPDF } from "jspdf";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock,
+  Download,
   Image as ImageIcon,
   LoaderCircle,
   MapPin,
   Pencil,
   Phone,
   Plus,
+  QrCode,
   RefreshCw,
   Store as StoreIcon,
   X,
@@ -33,6 +35,8 @@ type StoreService = "Phone Charging" | "Pick Me Later";
 
 interface StoreData {
   name: string;
+  storeCode: string;
+  qrImage: string;
   addressLink: string;
   contactNumber: string;
   timings: string;
@@ -199,6 +203,107 @@ export default function ShopOwnerProfilePage() {
     if (!image?.path) return null;
     return `${API_BASE_URL}${image.path}`;
   };
+
+// Store QR image URL
+const getQrImageUrl = () => {
+  if (!store?.qrImage) return null;
+  return `${API_BASE_URL}${store.qrImage}`;
+};
+
+const handleDownloadQrPng = async () => {
+  const imageUrl = getQrImageUrl();
+  if (!imageUrl) return;
+
+  try {
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+      throw new Error("Failed to download QR code.");
+    }
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = `${store?.name || "store"}-qr.png`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error("QR PNG download failed:", error);
+    alert("Unable to download QR code. Please try again.");
+  }
+};
+
+const handleDownloadQrPdf = async () => {
+  const imageUrl = getQrImageUrl();
+  if (!imageUrl || !store) return;
+
+  try {
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch QR image.");
+    }
+
+    const blob = await response.blob();
+
+    const qrDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Unable to process QR image."));
+        }
+      };
+
+      reader.onerror = () => reject(new Error("Unable to read QR image."));
+      reader.readAsDataURL(blob);
+    });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(24);
+    pdf.setTextColor(20, 45, 70);
+    pdf.text("NexoPod", 105, 35, { align: "center" });
+
+    pdf.setFontSize(19);
+    pdf.text(store.name, 105, 55, { align: "center" });
+
+    pdf.addImage(qrDataUrl, "PNG", 55, 75, 100, 100);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.setTextColor(0, 143, 117);
+    pdf.text("Scan to explore services and book", 105, 195, {
+      align: "center",
+    });
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text("Your permanent store QR code", 105, 207, {
+      align: "center",
+    });
+
+    pdf.setFontSize(10);
+    pdf.text(`Store Code: ${store.storeCode}`, 105, 220, {
+      align: "center",
+    });
+
+    pdf.save(`${store.name}-qr-poster.pdf`);
+  } catch (error) {
+    console.error("QR PDF download failed:", error);
+    alert("Unable to generate PDF. Please try again.");
+  }
+};
 
   // Logout
   const handleLogout = () => {
@@ -702,6 +807,66 @@ export default function ShopOwnerProfilePage() {
               <p className="mt-2 text-sm text-gray-500">No services enabled</p>
             )}
           </div>
+        </div>
+            </section>
+
+      {/* Store QR Code */}
+      <section className="rounded-2xl border border-[#E7EDF1] bg-white p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <QrCode size={21} className="text-[#00A985]" />
+          <h2 className="text-lg font-bold text-[#123D4A]">
+            Store QR Code
+          </h2>
+        </div>
+
+        <p className="mb-4 text-sm text-gray-500">
+          Customers can scan this QR code to view your store and book services.
+          Your QR code remains the same even if your store details change.
+        </p>
+
+        <div className="flex flex-col items-center rounded-2xl border border-[#E7EDF1] bg-[#F8FBFC] p-5">
+          {getQrImageUrl() ? (
+            <img
+              src={getQrImageUrl()!}
+              alt="Store QR Code"
+              className="h-52 w-52 rounded-lg bg-white object-contain p-2"
+            />
+          ) : (
+            <p className="py-10 text-sm text-gray-500">
+              QR code is not available.
+            </p>
+          )}
+
+          <p className="mt-3 text-xs font-medium text-gray-500">
+            Your permanent Store Code
+          </p>
+
+          <p className="mt-1 break-all text-center text-sm font-bold tracking-wider text-[#142D46]">
+            {store.storeCode}
+          </p>
+
+          <div className="mt-5 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+  <button
+    type="button"
+    onClick={handleDownloadQrPng}
+    disabled={!store.qrImage}
+    className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#00A985] px-4 text-sm font-semibold text-white transition hover:bg-[#008F75] disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <Download size={18} />
+    Download PNG
+  </button>
+
+  <button
+    type="button"
+    onClick={handleDownloadQrPdf}
+    disabled={!store.qrImage}
+    className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#00A985] bg-white px-4 text-sm font-semibold text-[#008F75] transition hover:bg-[#E4F7F3] disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <Download size={18} />
+    Download PDF Poster
+  </button>
+</div>
+
         </div>
       </section>
 

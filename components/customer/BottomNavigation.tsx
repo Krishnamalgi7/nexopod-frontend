@@ -1,14 +1,8 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  CalendarDays,
-  ScanQrCode,
-  UserRound,
-} from "lucide-react";
+import { Home, ScanQrCode, Store } from "lucide-react";
 
 const navigation = [
   {
@@ -17,19 +11,14 @@ const navigation = [
     icon: Home,
   },
   {
-    label: "Bookings",
-    href: "/customer/bookings",
-    icon: CalendarDays,
-  },
-  {
     label: "QR Scanner",
-    href: null,
+    href: "/customer/qr-scanner",
     icon: ScanQrCode,
   },
   {
-    label: "Profile",
-    href: "/customer/profile",
-    icon: UserRound,
+    label: "All Stores",
+    href: "/customer/all-stores",
+    icon: Store,
   },
 ];
 
@@ -68,11 +57,7 @@ export default function BottomNavigation() {
           }
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={className}
-            >
+            <Link key={item.href} href={item.href} className={className}>
               <Icon size={23} strokeWidth={active ? 2.5 : 2} />
               <span className="whitespace-nowrap text-[11px] font-semibold sm:text-xs">
                 {item.label}

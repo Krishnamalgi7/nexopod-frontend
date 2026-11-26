@@ -68,8 +68,9 @@ export default function AddStorePage() {
   const additionalImagesRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
-  const [addressLink, setAddressLink] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+const [address, setAddress] = useState("");
+const [addressLink, setAddressLink] = useState("");
+const [contactNumber, setContactNumber] = useState("");
   const [services, setServices] = useState<string[]>([]);
 
   const [weeklyTimings, setWeeklyTimings] = useState<Record<DayKey, DayTiming>>(
@@ -214,6 +215,16 @@ export default function AddStorePage() {
       return;
     }
 
+    // 2. Physical store address
+if (address.trim().length < 5) {
+  setToast({
+    type: "warning",
+    title: "Store address required",
+    message: "Please enter the complete physical store address.",
+  });
+  return;
+}
+
     // 2. Contact number
     if (!/^\d{10}$/.test(contactNumber)) {
       setToast({
@@ -325,6 +336,7 @@ export default function AddStorePage() {
 
       const result = await createStore({
         name: name.trim(),
+        address: address.trim(),
         addressLink: addressLink.trim(),
         contactNumber,
         timings: "See weekly schedule",
@@ -342,6 +354,7 @@ export default function AddStorePage() {
 
       // Clear the form after successful creation.
       setName("");
+      setAddress("");
       setAddressLink("");
       setContactNumber("");
       setServices([]);
@@ -452,6 +465,30 @@ export default function AddStorePage() {
                   />
                 </div>
               </div>
+
+              {/* Physical Store Address */}
+<div className="md:col-span-2">
+  <label
+    htmlFor="store-physical-address"
+    className="mb-2 block text-sm font-semibold text-[#123d4a]"
+  >
+    Store address *
+  </label>
+
+  <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+    <MapPin size={18} className="shrink-0 text-[#829397]" />
+
+    <input
+      id="store-physical-address"
+      type="text"
+      value={address}
+      onChange={(e) => setAddress(e.target.value)}
+      placeholder="Enter complete store address"
+      required
+      className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+    />
+  </div>
+</div>
 
               {/* Contact Number */}
               <div>

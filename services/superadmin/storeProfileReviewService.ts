@@ -29,6 +29,7 @@ export interface StoreProfileReviewRequest {
   storeId: {
     _id: string;
     name: string;
+    address: string;
     contactNumber: string;
     addressLink: string;
     timings: string;
@@ -43,6 +44,7 @@ export interface StoreProfileReviewRequest {
 
   proposedProfile: {
     name?: string;
+    address?: string;
     contactNumber?: string;
     addressLink?: string;
     timings?: string;

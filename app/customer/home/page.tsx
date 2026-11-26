@@ -103,14 +103,14 @@ export default function UserHomePage() {
   }, [stores, searchQuery, selectedService]);
 
   const goToAllStores = () => {
-    router.push("/user/store/all-stores");
-  };
+  router.push("/customer/all-stores");
+};
 
   const goToStoreDetails = (storeId: string) => {
-    router.push(
-      `/user/store/store-details?storeId=${encodeURIComponent(storeId)}`,
-    );
-  };
+  router.push(
+    `/customer/store-details?storeId=${encodeURIComponent(storeId)}`,
+  );
+};
 
   const changeSlide = (direction: number) => {
     setActiveSlide(

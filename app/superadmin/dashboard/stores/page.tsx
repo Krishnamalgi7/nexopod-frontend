@@ -121,6 +121,7 @@ export default function StoresPage() {
 
   const [editForm, setEditForm] = useState({
     name: "",
+      address: "",
     contactNumber: "",
     addressLink: "",
     openTime: "",
@@ -292,6 +293,7 @@ export default function StoresPage() {
 
     setEditForm({
       name: store.name,
+      address: store.address || "",
       contactNumber: store.contactNumber,
       addressLink: store.addressLink,
       openTime: "",
@@ -389,6 +391,16 @@ export default function StoresPage() {
       return;
     }
 
+    // 2. Physical store address
+if (editForm.address.trim().length < 5) {
+  setToast({
+    type: "warning",
+    title: "Store address required",
+    message: "Please enter the complete physical store address.",
+  });
+  return;
+}
+
     // 2. Contact number
     if (!/^\d{10}$/.test(editForm.contactNumber)) {
       setToast({
@@ -449,6 +461,7 @@ export default function StoresPage() {
 
       const updated = await updateStoreDetails(storeToEdit._id, {
         name: editForm.name,
+        address: editForm.address.trim(),
         contactNumber: editForm.contactNumber,
         addressLink: editForm.addressLink,
 
@@ -1053,6 +1066,29 @@ export default function StoresPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Physical Store Address */}
+<div className="md:col-span-2">
+  <label className="mb-2 block text-sm font-semibold text-[#123d4a]">
+    Physical store address *
+  </label>
+
+  <div className="flex items-center rounded-xl border border-[#cbd9df] px-4 transition focus-within:border-[#079d98] focus-within:ring-2 focus-within:ring-[#079d98]/10">
+    <MapPin size={18} className="shrink-0 text-[#829397]" />
+
+    <input
+      type="text"
+      value={editForm.address}
+      onChange={(e) =>
+        setEditForm({ ...editForm, address: e.target.value })
+      }
+      required
+      minLength={5}
+      placeholder="Enter complete physical store address"
+      className="w-full bg-transparent px-3 py-3 text-sm text-[#123d4a] outline-none"
+    />
+  </div>
+</div>
 
                   {/* Contact Number */}
                   <div>

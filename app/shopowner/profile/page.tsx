@@ -35,6 +35,7 @@ type StoreService = "Phone Charging" | "Pick Me Later";
 
 interface StoreData {
   name: string;
+  address: string;
   storeCode: string;
   qrImage: string;
   addressLink: string;
@@ -88,6 +89,7 @@ export default function ShopOwnerProfilePage() {
   const [editName, setEditName] = useState("");
   const [editContactNumber, setEditContactNumber] = useState("");
   const [editAddressLink, setEditAddressLink] = useState("");
+  const [editAddress, setEditAddress] = useState("");
 
   const [editServices, setEditServices] = useState<StoreService[]>([]);
   const [editWeeklyTimings, setEditWeeklyTimings] = useState<
@@ -204,106 +206,106 @@ export default function ShopOwnerProfilePage() {
     return `${API_BASE_URL}${image.path}`;
   };
 
-// Store QR image URL
-const getQrImageUrl = () => {
-  if (!store?.qrImage) return null;
-  return `${API_BASE_URL}${store.qrImage}`;
-};
+  // Store QR image URL
+  const getQrImageUrl = () => {
+    if (!store?.qrImage) return null;
+    return `${API_BASE_URL}${store.qrImage}`;
+  };
 
-const handleDownloadQrPng = async () => {
-  const imageUrl = getQrImageUrl();
-  if (!imageUrl) return;
+  const handleDownloadQrPng = async () => {
+    const imageUrl = getQrImageUrl();
+    if (!imageUrl) return;
 
-  try {
-    const response = await fetch(imageUrl);
+    try {
+      const response = await fetch(imageUrl);
 
-    if (!response.ok) {
-      throw new Error("Failed to download QR code.");
+      if (!response.ok) {
+        throw new Error("Failed to download QR code.");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${store?.name || "store"}-qr.png`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("QR PNG download failed:", error);
+      alert("Unable to download QR code. Please try again.");
     }
+  };
 
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
+  const handleDownloadQrPdf = async () => {
+    const imageUrl = getQrImageUrl();
+    if (!imageUrl || !store) return;
 
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = `${store?.name || "store"}-qr.png`;
+    try {
+      const response = await fetch(imageUrl);
 
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+      if (!response.ok) {
+        throw new Error("Failed to fetch QR image.");
+      }
 
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    console.error("QR PNG download failed:", error);
-    alert("Unable to download QR code. Please try again.");
-  }
-};
+      const blob = await response.blob();
 
-const handleDownloadQrPdf = async () => {
-  const imageUrl = getQrImageUrl();
-  if (!imageUrl || !store) return;
+      const qrDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
 
-  try {
-    const response = await fetch(imageUrl);
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+          } else {
+            reject(new Error("Unable to process QR image."));
+          }
+        };
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch QR image.");
+        reader.onerror = () => reject(new Error("Unable to read QR image."));
+        reader.readAsDataURL(blob);
+      });
+
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(24);
+      pdf.setTextColor(20, 45, 70);
+      pdf.text("NexoPod", 105, 35, { align: "center" });
+
+      pdf.setFontSize(19);
+      pdf.text(store.name, 105, 55, { align: "center" });
+
+      pdf.addImage(qrDataUrl, "PNG", 55, 75, 100, 100);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.setTextColor(0, 143, 117);
+      pdf.text("Scan to explore services and book", 105, 195, {
+        align: "center",
+      });
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text("Your permanent store QR code", 105, 207, {
+        align: "center",
+      });
+
+      pdf.setFontSize(10);
+      pdf.text(`Store Code: ${store.storeCode}`, 105, 220, {
+        align: "center",
+      });
+
+      pdf.save(`${store.name}-qr-poster.pdf`);
+    } catch (error) {
+      console.error("QR PDF download failed:", error);
+      alert("Unable to generate PDF. Please try again.");
     }
-
-    const blob = await response.blob();
-
-    const qrDataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Unable to process QR image."));
-        }
-      };
-
-      reader.onerror = () => reject(new Error("Unable to read QR image."));
-      reader.readAsDataURL(blob);
-    });
-
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(24);
-    pdf.setTextColor(20, 45, 70);
-    pdf.text("NexoPod", 105, 35, { align: "center" });
-
-    pdf.setFontSize(19);
-    pdf.text(store.name, 105, 55, { align: "center" });
-
-    pdf.addImage(qrDataUrl, "PNG", 55, 75, 100, 100);
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(16);
-    pdf.setTextColor(0, 143, 117);
-    pdf.text("Scan to explore services and book", 105, 195, {
-      align: "center",
-    });
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(11);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text("Your permanent store QR code", 105, 207, {
-      align: "center",
-    });
-
-    pdf.setFontSize(10);
-    pdf.text(`Store Code: ${store.storeCode}`, 105, 220, {
-      align: "center",
-    });
-
-    pdf.save(`${store.name}-qr-poster.pdf`);
-  } catch (error) {
-    console.error("QR PDF download failed:", error);
-    alert("Unable to generate PDF. Please try again.");
-  }
-};
+  };
 
   // Logout
   const handleLogout = () => {
@@ -340,6 +342,7 @@ const handleDownloadQrPdf = async () => {
     if (!store) return;
 
     setEditName(store.name);
+    setEditAddress(store.address || "");
     setEditContactNumber(
       store.contactNumber.replace(/^\+91/, "").replace(/\D/g, "").slice(-10),
     );
@@ -388,6 +391,11 @@ const handleDownloadQrPdf = async () => {
       return;
     }
 
+    if (editAddress.trim().length < 5) {
+      setError("Please enter a valid physical store address.");
+      return;
+    }
+
     if (editServices.length === 0) {
       setError("At least one store service must remain enabled.");
       return;
@@ -423,6 +431,7 @@ const handleDownloadQrPdf = async () => {
       const formData = new FormData();
 
       formData.append("name", editName.trim());
+      formData.append("address", editAddress.trim());
       formData.append("contactNumber", editContactNumber.trim());
       formData.append("addressLink", editAddressLink.trim());
       formData.append("services", JSON.stringify(editServices));
@@ -808,15 +817,13 @@ const handleDownloadQrPdf = async () => {
             )}
           </div>
         </div>
-            </section>
+      </section>
 
       {/* Store QR Code */}
       <section className="rounded-2xl border border-[#E7EDF1] bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <QrCode size={21} className="text-[#00A985]" />
-          <h2 className="text-lg font-bold text-[#123D4A]">
-            Store QR Code
-          </h2>
+          <h2 className="text-lg font-bold text-[#123D4A]">Store QR Code</h2>
         </div>
 
         <p className="mb-4 text-sm text-gray-500">
@@ -846,27 +853,26 @@ const handleDownloadQrPdf = async () => {
           </p>
 
           <div className="mt-5 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-  <button
-    type="button"
-    onClick={handleDownloadQrPng}
-    disabled={!store.qrImage}
-    className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#00A985] px-4 text-sm font-semibold text-white transition hover:bg-[#008F75] disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    <Download size={18} />
-    Download PNG
-  </button>
+            <button
+              type="button"
+              onClick={handleDownloadQrPng}
+              disabled={!store.qrImage}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#00A985] px-4 text-sm font-semibold text-white transition hover:bg-[#008F75] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={18} />
+              Download PNG
+            </button>
 
-  <button
-    type="button"
-    onClick={handleDownloadQrPdf}
-    disabled={!store.qrImage}
-    className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#00A985] bg-white px-4 text-sm font-semibold text-[#008F75] transition hover:bg-[#E4F7F3] disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    <Download size={18} />
-    Download PDF Poster
-  </button>
-</div>
-
+            <button
+              type="button"
+              onClick={handleDownloadQrPdf}
+              disabled={!store.qrImage}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#00A985] bg-white px-4 text-sm font-semibold text-[#008F75] transition hover:bg-[#E4F7F3] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={18} />
+              Download PDF Poster
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1133,6 +1139,18 @@ const handleDownloadQrPdf = async () => {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Physical Store Address
+                </label>
+                <input
+                  value={editAddress}
+                  onChange={(event) => setEditAddress(event.target.value)}
+                  placeholder="Enter complete physical store address"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#00BFA5] focus:ring-2 focus:ring-[#00BFA5]/10"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Contact Number
                 </label>
                 <div className="flex overflow-hidden rounded-xl border border-gray-200 focus-within:border-[#00BFA5]">
@@ -1283,16 +1301,19 @@ const handleDownloadQrPdf = async () => {
                             </label>
                             <div className="flex gap-1.5">
                               <select
-                                value={
-                                  timing.openTime?.match(/^(\d{1,2}):/)?.[1] ??
-                                  "9"
-                                }
+                                value={String(
+                                  Number(
+                                    timing.openTime?.match(
+                                      /^(\d{1,2}):/,
+                                    )?.[1] ?? "9",
+                                  ),
+                                )}
                                 onChange={(event) =>
                                   setEditWeeklyTimings((current) => ({
                                     ...current,
                                     [dayKey]: {
                                       ...current[dayKey],
-                                      openTime: `${event.target.value}:${timing.openTime?.match(/:(\d{2})/)?.[1] ?? "00"} ${timing.openTime?.match(/(AM|PM)$/i)?.[1] ?? "AM"}`,
+                                      openTime: `${String(event.target.value).padStart(2, "0")}:${timing.openTime?.match(/:(\d{2})/)?.[1] ?? "00"} ${timing.openTime?.match(/(AM|PM)$/i)?.[1] ?? "AM"}`,
                                     },
                                   }))
                                 }
@@ -1374,7 +1395,7 @@ const handleDownloadQrPdf = async () => {
                                     ...current,
                                     [dayKey]: {
                                       ...current[dayKey],
-                                      closeTime: `${event.target.value}:${timing.closeTime?.match(/:(\d{2})/)?.[1] ?? "00"} ${timing.closeTime?.match(/(AM|PM)$/i)?.[1] ?? "PM"}`,
+                                      closeTime: `${String(event.target.value).padStart(2, "0")}:${timing.closeTime?.match(/:(\d{2})/)?.[1] ?? "00"} ${timing.closeTime?.match(/(AM|PM)$/i)?.[1] ?? "PM"}`,
                                     },
                                   }))
                                 }

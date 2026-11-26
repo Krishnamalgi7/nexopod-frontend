@@ -307,6 +307,12 @@ export default function StoreProfileReviewPage() {
                 />
 
                 <ComparisonDetail
+  label="Physical Store Address"
+  currentValue={currentStore.address}
+  proposedValue={proposed.address}
+/>
+
+                <ComparisonDetail
                   label="Address Link"
                   currentValue={currentStore.addressLink}
                   proposedValue={proposed.addressLink}

@@ -14,6 +14,7 @@ const handleUnauthorized = () => {
 
 export interface CreateStoreData {
     name: string;
+    address: string;
     addressLink: string;
     contactNumber: string;
     timings: string;
@@ -33,6 +34,7 @@ interface CreateStoreResponse {
     data?: {
         _id: string;
         name: string;
+        address:string;
         addressLink: string;
         contactNumber: string;
         timings: string;
@@ -52,6 +54,7 @@ export const createStore = async (storeData: CreateStoreData): Promise<CreateSto
 
     const formData = new FormData();
     formData.append("name", storeData.name.trim());
+    formData.append("address", storeData.address.trim());
     formData.append("addressLink", storeData.addressLink.trim());
     formData.append("contactNumber", storeData.contactNumber);
     formData.append("timings", storeData.timings.trim());
@@ -90,6 +93,7 @@ export interface StoreDayTiming {
 export interface StoreItem {
     _id: string;
     name: string;
+    address:string;
     addressLink: string;
     contactNumber: string;
     timings: string;
@@ -223,6 +227,7 @@ export const updateStoreStatus = async (
 
 export interface UpdateStoreDetailsData {
     name: string;
+    address: string;
     addressLink: string;
     contactNumber: string;
     timings: string;
@@ -248,6 +253,7 @@ export const updateStoreDetails = async (
 
     // Basic store details
     formData.append("name", details.name.trim());
+    formData.append("address", details.address.trim());
     formData.append("addressLink", details.addressLink.trim());
     formData.append("contactNumber", details.contactNumber);
     formData.append("timings", details.timings.trim());

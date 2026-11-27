@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -17,6 +16,7 @@ import {
   Circle,
   X,
   LoaderCircle,
+  Phone,
 } from "lucide-react";
 import API_BASE_URL from "@/services/common/api";
 import ImageWithFallback from "@/components/common/ImageWithFallback";
@@ -47,6 +47,7 @@ interface StoreImage {
 interface StoreItem {
   _id: string;
   name: string;
+  contactNumber?: string;
   address?: string;
   addressLink?: string;
   timings?: string;
@@ -56,23 +57,16 @@ interface StoreItem {
   images?: (string | StoreImage)[];
 }
 
-const getImageUrl = (
-  image?: string | StoreImage,
-): string | undefined => {
+const getImageUrl = (image?: string | StoreImage): string | undefined => {
   if (typeof image === "string") {
-    return image.startsWith("http")
-      ? image
-      : `${API_BASE_URL}${image}`;
+    return image.startsWith("http") ? image : `${API_BASE_URL}${image}`;
   }
 
   if (image && typeof image === "object") {
-    const path =
-      image.path || image.url || image.uri || image.secure_url;
+    const path = image.path || image.url || image.uri || image.secure_url;
 
     if (path) {
-      return path.startsWith("http")
-        ? path
-        : `${API_BASE_URL}${path}`;
+      return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
     }
   }
 
@@ -152,9 +146,7 @@ function StoreDetailsContent() {
   };
 
   const goToNextImage = () => {
-    setActiveImage((current) =>
-      Math.min(storeImages.length - 1, current + 1),
-    );
+    setActiveImage((current) => Math.min(storeImages.length - 1, current + 1));
   };
 
   const handleContinue = () => {
@@ -203,7 +195,6 @@ function StoreDetailsContent() {
   return (
     <main className="min-h-screen bg-[#F5F8FA] px-4 pb-10 pt-3 text-[#142D46] sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-6xl">
-
         {/* Header */}
         <header className="flex items-center gap-4 py-3">
           <button
@@ -215,20 +206,18 @@ function StoreDetailsContent() {
             <ArrowLeft size={21} />
           </button>
 
-          <h1 className="text-lg font-bold sm:text-xl">
-            Store Details
-          </h1>
+          <h1 className="text-lg font-bold sm:text-xl">Store Details</h1>
         </header>
 
         {/* Store Image Carousel */}
         <section className="mt-4">
-          <div className="relative mx-auto h-[190px] w-fit max-w-full overflow-hidden rounded-3xl sm:h-[230px]">
+          <div className="relative mx-auto h-[250px] w-full max-w-[600px] overflow-hidden rounded-3xl border border-[#E7EDF1] bg-white sm:h-[280px]">
             {storeImages.length > 0 ? (
               <ImageWithFallback
                 key={storeImages[activeImage]}
                 src={storeImages[activeImage]}
                 alt={`${store.name} image ${activeImage + 1}`}
-                className="h-full w-auto max-w-full object-contain"
+                className="h-full w-full object-contain"
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center">
@@ -287,31 +276,77 @@ function StoreDetailsContent() {
           )}
         </section>
 
-        {/* Store Information */}
-        <section className="mt-7">
-          <h2 className="text-2xl font-bold sm:text-3xl">
+        {/* Store Information Card */}
+        <section className="mt-5 rounded-3xl border border-[#E7EDF1] bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl font-bold text-[#142D46] sm:text-2xl">
             {store.name}
           </h2>
 
-          {/* Store Address */}
-          {store.address && (
-            <div className="mt-4 flex items-start gap-3">
-              <div className="flex h-10 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
-                <MapPin size={19} />
+          <div className="mt-5 space-y-5">
+            {/* Store Address */}
+            {store.address && (
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
+                  <MapPin size={19} />
+                </div>
+
+                <div className="min-w-0 pt-0.5">
+                  <p className="text-sm font-semibold text-[#142D46]">
+                    Address
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-[#7B8798]">
+                    {store.address}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Contact Number */}
+            {store.contactNumber && (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
+                  <Phone size={19} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[#142D46]">
+                    Contact Number
+                  </p>
+                  <a
+                    href={`tel:${store.contactNumber}`}
+                    className="mt-1 inline-block text-sm font-medium text-[#008F75] hover:underline"
+                  >
+                    {store.contactNumber}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Weekly Schedule */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
+                <Clock size={19} />
               </div>
 
-              <p className="pt-1 text-sm leading-6 text-[#7B8798]">
-                {store.address}
-              </p>
-            </div>
-          )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[#142D46]">
+                  Store Hours
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setScheduleVisible(true)}
+                  className="mt-1 text-sm font-medium text-[#008F75] hover:underline"
+                >
+                  View weekly schedule
+                </button>
+              </div>
 
-          {/* Store Location */}
-          <div className="mt-3 flex items-center gap-3">
-            <div className="flex h-10 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
-              <MapPin size={19} />
+              <ChevronRight size={19} className="text-[#7B8798]" />
             </div>
+          </div>
 
+          {/* Store Location Button */}
+          <div className="mt-5 border-t border-[#E7EDF1] pt-4">
             <button
               type="button"
               disabled={!store.addressLink}
@@ -324,34 +359,17 @@ function StoreDetailsContent() {
                   );
                 }
               }}
-              className="flex items-center gap-2 rounded-full bg-[#E4F7F3] px-5 py-3 text-sm font-semibold text-[#008F75] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E4F7F3] px-4 py-3 text-sm font-semibold text-[#008F75] transition hover:bg-[#D5F3EC] disabled:opacity-50"
             >
               View Store Location
               <ExternalLink size={17} />
-            </button>
-          </div>
-
-          {/* Weekly Schedule */}
-          <div className="mt-3 flex items-center gap-3 border-b border-[#E7EDF1] pb-5">
-            <div className="flex h-10 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E4F7F3] text-[#00A889]">
-              <Clock size={19} />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setScheduleVisible(true)}
-              className="rounded-full bg-[#E4F7F3] px-5 py-3 text-sm font-semibold text-[#008F75]"
-            >
-              See weekly schedule
             </button>
           </div>
         </section>
 
         {/* Choose a Service */}
         <section className="mt-8">
-          <h2 className="text-xl font-bold sm:text-2xl">
-            Choose a Service
-          </h2>
+          <h2 className="text-xl font-bold sm:text-2xl">Choose a Service</h2>
 
           <p className="mt-1 text-sm text-[#7B8798] sm:text-base">
             Select one service to continue
@@ -367,14 +385,14 @@ function StoreDetailsContent() {
                   key={item}
                   type="button"
                   onClick={() => setSelectedService(item)}
-                  className={`w-full rounded-[22px] border bg-white p-5 text-left transition ${
+                  className={`w-full rounded-[20px] border bg-white p-4 text-left transition ${
                     isSelected
                       ? "border-2 border-[#00BFA5]"
                       : "border border-[#E7EDF1]"
                   }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#E4F7F3] text-[#00BFA5]">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#E4F7F3] text-[#00BFA5]">
                       {isPhoneCharging ? (
                         <Zap size={39} />
                       ) : (
@@ -400,10 +418,7 @@ function StoreDetailsContent() {
                         className="shrink-0 text-[#00BFA5]"
                       />
                     ) : (
-                      <Circle
-                        size={27}
-                        className="shrink-0 text-[#7B8798]"
-                      />
+                      <Circle size={27} className="shrink-0 text-[#7B8798]" />
                     )}
                   </div>
 
@@ -421,7 +436,7 @@ function StoreDetailsContent() {
             type="button"
             onClick={handleContinue}
             disabled={!selectedService}
-            className={`mt-6 h-16 w-full rounded-2xl text-lg font-bold text-white transition ${
+            className={`mt-5 h-14 w-full rounded-2xl text-base font-bold text-white transition ${
               selectedService
                 ? "bg-[#00A995] hover:bg-[#009D89]"
                 : "cursor-not-allowed bg-[#A9CFC9]"
@@ -483,9 +498,7 @@ function StoreDetailsContent() {
                   key={day}
                   className="flex items-center justify-between gap-4 border-b border-[#E7EDF1] py-4 last:border-0"
                 >
-                  <span className="font-semibold text-[#142D46]">
-                    {day}
-                  </span>
+                  <span className="font-semibold text-[#142D46]">{day}</span>
 
                   <span className="text-right text-sm text-[#7B8798]">
                     {!timing

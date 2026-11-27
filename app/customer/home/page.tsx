@@ -103,14 +103,14 @@ export default function UserHomePage() {
   }, [stores, searchQuery, selectedService]);
 
   const goToAllStores = () => {
-  router.push("/customer/all-stores");
-};
+    router.push("/customer/all-stores");
+  };
 
   const goToStoreDetails = (storeId: string) => {
-  router.push(
-    `/customer/store-details?storeId=${encodeURIComponent(storeId)}`,
-  );
-};
+    router.push(
+      `/customer/store-details?storeId=${encodeURIComponent(storeId)}`,
+    );
+  };
 
   const changeSlide = (direction: number) => {
     setActiveSlide(
@@ -143,10 +143,9 @@ export default function UserHomePage() {
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10 lg:py-10">
         {/* Welcome */}
         <section className="mb-7">
-          <h2 className="text-3xl font-bold text-[#142D46]">Hello, Welcome!</h2>
-          <p className="mt-2 text-base text-[#7B8798]">
-            Find the perfect place for your next experience.
-          </p>
+          <h2 className="text-3xl font-bold text-[#142D46]">
+            Welcome to Nexopod !
+          </h2>
         </section>
 
         {/* Search and filter */}

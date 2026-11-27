@@ -11,19 +11,39 @@ import {
   ChevronRight,
   LoaderCircle,
   ArrowLeft,
+  Search,
 } from "lucide-react";
 import API_BASE_URL from "@/services/common/api";
 import { useShopOwnerAuthStore } from "@/stores/shopowner/authStore";
 
 interface Booking {
   _id: string;
+  bookingReference?: string;
   service: "Phone Charging" | "Pick Me Later";
   startAt: string;
+  endAt?: string;
+  slotNumber?: number;
+  durationMinutes?: number;
+  serviceEndAt?: string;
   status: "confirmed" | "completed" | "cancelled";
+
   customerId?: {
     _id: string;
     name: string;
   } | null;
+
+  customerName?: string;
+  customerPhone?: string;
+
+  itemName?: string;
+  itemQuantity?: number;
+
+  assignPicker?: boolean;
+  pickerName?: string;
+  pickerPhone?: string;
+  pickupPin?: string | null;
+  pickerVerifiedAt?: string | null;
+
   nextAction: {
     label: string;
     status: "in_progress" | "completed";
@@ -41,6 +61,7 @@ export default function ShopOwnerBookingsPage() {
   const [phoneBookings, setPhoneBookings] = useState<Booking[]>([]);
   const [pickMeLaterBookings, setPickMeLaterBookings] = useState<Booking[]>([]);
   const [selectedService, setSelectedService] = useState<ServiceFilter>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,8 +142,12 @@ export default function ShopOwnerBookingsPage() {
           ? `&cursor=${encodeURIComponent(cursor)}`
           : "";
 
+        const searchQuery = searchTerm.trim()
+          ? `&search=${encodeURIComponent(searchTerm.trim())}`
+          : "";
+
         const response = await fetch(
-          `${API_BASE_URL}/api/shop-owners/bookings?limit=20&service=${encodeURIComponent(service)}${cursorQuery}`,
+          `${API_BASE_URL}/api/shop-owners/bookings?limit=20&service=${encodeURIComponent(service)}${searchQuery}${cursorQuery}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -196,7 +221,7 @@ export default function ShopOwnerBookingsPage() {
         setLoadingMore(false);
       }
     },
-    [token, selectedService, handleUnauthorized, router],
+    [token, selectedService, searchTerm, handleUnauthorized, router],
   );
 
   // Initial fetch and filter changes.
@@ -306,7 +331,7 @@ export default function ShopOwnerBookingsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 pb-8">
       {/* Page heading */}
-      
+
       {/* Bookings Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -320,9 +345,7 @@ export default function ShopOwnerBookingsPage() {
           </button>
 
           <div className="min-w-0">
-            <h1 className="text-xl font-extrabold text-[#123D4A]">
-              Bookings
-            </h1>
+            <h1 className="text-xl font-extrabold text-[#123D4A]">Bookings</h1>
             <p className="mt-1 text-sm text-[#64748B]">
               Manage your store bookings
             </p>
@@ -336,11 +359,23 @@ export default function ShopOwnerBookingsPage() {
           aria-label="Refresh bookings"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#00B894] disabled:opacity-50"
         >
-          <RefreshCw
-            size={25}
-            className={refreshing ? "animate-spin" : ""}
-          />
+          <RefreshCw size={25} className={refreshing ? "animate-spin" : ""} />
         </button>
+      </div>
+
+      {/* Booking Search */}
+      <div className="relative">
+        <Search
+          size={19}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8798]"
+        />
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search reference, customer, phone or service"
+          className="h-12 w-full rounded-2xl border border-[#E7EDF1] bg-white pl-11 pr-4 text-sm text-[#142D46] outline-none transition placeholder:text-[#9AA6B2] focus:border-[#00BFA5] focus:ring-2 focus:ring-[#00BFA5]/10"
+        />
       </div>
 
       {/* Store Inactive Notice */}
@@ -359,7 +394,7 @@ export default function ShopOwnerBookingsPage() {
         </div>
       )}
 
-            {/* Service Filters */}
+      {/* Service Filters */}
       <section className="rounded-full border border-[#E8EEF1] bg-[#E8EEF1] p-1">
         <div className="grid grid-cols-3 gap-1">
           {(["all", "Phone Charging", "Pick Me Later"] as const).map(
@@ -379,7 +414,6 @@ export default function ShopOwnerBookingsPage() {
           )}
         </div>
       </section>
-
 
       {/* Error */}
       {error && (
@@ -448,8 +482,20 @@ export default function ShopOwnerBookingsPage() {
                       </h3>
 
                       <p className="mt-1 text-sm text-[#64748B]">
-                        {booking.customerId?.name || "Customer"}
+                        {booking.customerName ||
+                          booking.customerId?.name ||
+                          "Customer"}
                       </p>
+
+                      <p className="mt-1 text-xs font-semibold text-[#00A98F]">
+                        Ref: {booking.bookingReference || "Not available"}
+                      </p>
+
+                      {booking.customerPhone && (
+                        <p className="mt-1 text-sm font-medium text-[#64748B]">
+                          {booking.customerPhone}
+                        </p>
+                      )}
                     </div>
 
                     <span
@@ -468,6 +514,121 @@ export default function ShopOwnerBookingsPage() {
                   <p className="mt-1 text-sm font-semibold text-[#123D4A]">
                     {formatBookingDate(booking.startAt)}
                   </p>
+
+                                    {booking.service === "Phone Charging" && (
+                    <div className="mt-4 space-y-3 rounded-xl border border-[#B8EDE3] bg-[#F0FBF8] p-4">
+                      <h4 className="text-sm font-bold text-[#164653]">
+                        Phone Charging Details
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-[#7B8798]">
+                            CHARGING SLOT
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                            {booking.slotNumber
+                              ? `Slot ${booking.slotNumber}`
+                              : "Not available"}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-medium text-[#7B8798]">
+                            DURATION
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                            {booking.durationMinutes
+                              ? `${booking.durationMinutes} minutes`
+                              : "Not available"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-[#7B8798]">
+                          SERVICE END TIME
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                          {booking.serviceEndAt
+                            ? formatBookingDate(booking.serviceEndAt)
+                            : "Not available"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {booking.service === "Pick Me Later" && (
+                    <div className="mt-4 space-y-3 rounded-xl border border-[#B8EDE3] bg-[#F0FBF8] p-4">
+                      <h4 className="text-sm font-bold text-[#164653]">
+                        Pick Me Later Details
+                      </h4>
+
+                      <div>
+                        <p className="text-xs font-medium text-[#7B8798]">
+                          COLLECTION DATE & TIME
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                          {booking.endAt
+                            ? formatBookingDate(booking.endAt)
+                            : "Not available"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-[#7B8798]">
+                          ITEM
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                          {booking.itemName || "Not available"}
+                          {booking.itemQuantity
+                            ? ` × ${booking.itemQuantity}`
+                            : ""}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-[#7B8798]">
+                          COLLECTION METHOD
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                          {booking.assignPicker
+                            ? "Assigned Picker"
+                            : "Customer Collection"}
+                        </p>
+                      </div>
+
+                      {booking.assignPicker && (
+                        <>
+                          <div>
+                            <p className="text-xs font-medium text-[#7B8798]">
+                              PICKER
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-[#123D4A]">
+                              {booking.pickerName || "Not available"}
+                            </p>
+                            <p className="text-sm text-[#64748B]">
+                              {booking.pickerPhone || ""}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg border border-dashed border-[#00BFA5] bg-white p-3">
+                            <p className="text-xs font-semibold text-[#7B8798]">
+                              PICKUP PIN
+                            </p>
+                            <p className="mt-1 text-xl font-extrabold tracking-[0.2em] text-[#008F75]">
+                              {booking.pickupPin || "Unavailable"}
+                            </p>
+                            <p className="mt-1 text-xs text-[#64748B]">
+                              {booking.pickerVerifiedAt
+                                ? "Picker verified"
+                                : "Waiting for picker verification"}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {action ? (
                     <button
